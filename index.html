@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- PapaParse for CSV parsing -->
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <!-- SheetJS for Excel (.xlsx) Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Chart.js for Analytics -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- html2pdf for Document Generation -->
@@ -164,6 +166,9 @@
             <button onclick="switchTab('history')" id="nav-history" class="nav-btn admin-only hidden w-full text-left flex items-center px-4 py-3 text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white rounded-xl transition">
                 Visitor History 📊
             </button>
+            <button onclick="switchTab('auditlogs')" id="nav-auditlogs" class="nav-btn admin-only hidden w-full text-left flex items-center px-4 py-3 text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white rounded-xl transition">
+                Audit Logs 📋
+            </button>
         </nav>
 
         <div class="p-4 border-t border-slate-800/80 text-xs text-slate-500 flex justify-between items-center bg-slate-900/30">
@@ -198,6 +203,7 @@
                     <input type="file" id="csvFileInput" accept=".csv" class="hidden" onchange="importCSV(event)">
                     <button onclick="document.getElementById('csvFileInput').click()" class="glass-panel hover:bg-slate-800 text-slate-200 text-xs font-bold px-4 py-2 rounded-xl transition shadow-md">Import CSV</button>
                     <button onclick="exportCSV()" class="glass-panel hover:bg-slate-800 text-slate-200 text-xs font-bold px-4 py-2 rounded-xl transition shadow-md">Export CSV</button>
+                    <button onclick="exportExcelXLSX()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition btn-3d shadow-lg shadow-emerald-600/30">Export Excel (.xlsx)</button>
                     <button id="addNewBtn" onclick="openModalForAdd()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition btn-3d shadow-lg shadow-blue-600/30">+ Add Container</button>
                 </div>
             </div>
@@ -390,17 +396,18 @@
                     <p class="text-xs text-slate-400 mt-0.5">Tonnage freight calculations, clearance fees, and invoice statuses.</p>
                 </div>
             </div>
-            <div class="grid grid-cols-3 gap-6 mb-6">
+            <!-- ENHANCED FINANCIAL SUMMARY KPI CARDS -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
                 <div class="glass-card p-5 rounded-2xl shadow-xl border border-slate-800">
-                    <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Total Gross Tonnage (BL)</p>
-                    <p id="exp-total-tonnage" class="text-2xl font-black text-white mt-1">0 MT</p>
+                    <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Total Active Containers in Transit</p>
+                    <p id="exp-total-active" class="text-2xl font-black text-white mt-1">0</p>
                 </div>
                 <div class="glass-card p-5 rounded-2xl shadow-xl border border-slate-800">
-                    <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Estimated Freight Revenue</p>
+                    <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Total Estimated Freight Revenue</p>
                     <p id="exp-est-revenue" class="text-2xl font-black text-emerald-400 mt-1">$0</p>
                 </div>
                 <div class="glass-card p-5 rounded-2xl shadow-xl border border-slate-800">
-                    <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Operational Expenses</p>
+                    <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Total Outstanding/Pending Costs</p>
                     <p id="exp-est-expenses" class="text-2xl font-black text-amber-400 mt-1">$0</p>
                 </div>
             </div>
@@ -579,6 +586,30 @@
             </div>
         </div>
 
+        <!-- TAB 9: AUDIT LOGS (ADMIN ONLY) -->
+        <div id="tab-auditlogs" class="tab-content p-8 hidden">
+            <div class="mb-6 flex justify-between items-center">
+                <div>
+                    <h2 class="text-xl font-black text-white tracking-wide">Automated Firestore Audit Trail (Activity Logs)</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Track team member changes, container additions, edits, and deletions with timestamps.</p>
+                </div>
+            </div>
+            <div class="glass-card rounded-2xl shadow-2xl overflow-hidden border border-slate-800">
+                <table class="w-full text-left text-xs text-slate-300 whitespace-nowrap">
+                    <thead class="bg-slate-900/90 border-b border-slate-800 font-bold text-slate-300">
+                        <tr>
+                            <th class="p-3.5">User</th>
+                            <th class="p-3.5">Action Type</th>
+                            <th class="p-3.5">Container No</th>
+                            <th class="p-3.5">Details</th>
+                            <th class="p-3.5">Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditLogsTableBody" class="divide-y divide-slate-800/60"></tbody>
+                </table>
+            </div>
+        </div>
+
     </main>
 
     <!-- Modal for Add / Edit Container -->
@@ -690,6 +721,7 @@
         const containersCollection = db.collection('containers');
         const membersCollection = db.collection('members');
         const historyCollection = db.collection('visitor_history');
+        const auditLogsCollection = db.collection('audit_logs'); // Feature 2: Audit Logs
 
         // Application State Data Variables
         let masterData = [];
@@ -768,6 +800,7 @@
             renderColumnCheckboxes();
             listenToFirebaseData();
             checkInitialAdminAccount();
+            listenToAuditLogs();
         });
 
         async function checkInitialAdminAccount() {
@@ -1056,6 +1089,44 @@
         }
 
         // ==========================================
+        // FEATURE 2: AUTOMATED AUDIT TRAIL LOGS
+        // ==========================================
+        async function logAuditAction(actionType, containerNo, details) {
+            try {
+                await auditLogsCollection.add({
+                    user: currentUsername || 'System',
+                    actionType: actionType,
+                    containerNo: containerNo || 'N/A',
+                    details: details || '',
+                    timestamp: new Date().toLocaleString()
+                });
+            } catch (e) {
+                console.error("Error logging audit trail:", e);
+            }
+        }
+
+        function listenToAuditLogs() {
+            auditLogsCollection.onSnapshot(snapshot => {
+                const tbody = document.getElementById('auditLogsTableBody');
+                if (!tbody) return;
+                tbody.innerHTML = '';
+                snapshot.docs.forEach(doc => {
+                    const data = doc.data();
+                    const tr = document.createElement('tr');
+                    tr.className = "border-b border-slate-800/60 hover:bg-slate-800/40 transition";
+                    tr.innerHTML = `
+                        <td class="p-3.5 font-bold text-white">${data.user}</td>
+                        <td class="p-3.5 uppercase text-[10px] font-black text-blue-400">${data.actionType}</td>
+                        <td class="p-3.5 font-mono text-amber-300 font-bold">${data.containerNo}</td>
+                        <td class="p-3.5 text-slate-300">${data.details}</td>
+                        <td class="p-3.5 text-slate-400">${data.timestamp}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            });
+        }
+
+        // ==========================================
         // 4. REAL-TIME DATABASE SYNC (FIREBASE)
         // ==========================================
         function listenToFirebaseData() {
@@ -1082,6 +1153,7 @@
             populateFilterDropdowns();
             applyFilters();
             populateCustomerDropdown();
+            updateEnhancedFinancialCards(); // Feature 3
         }
 
         // ==========================================
@@ -1256,474 +1328,161 @@
             const pageData = filteredData.slice(startIndex, startIndex + pageSize);
 
             pageData.forEach((row) => {
-                const index = masterData.indexOf(row);
+                const actualIndex = masterData.indexOf(row);
+                const containerNo = row['Container number'] || 'N/A';
+                const blNo = row['BL number'] || 'N/A';
+                const route = `${row['Port of Loading'] || 'POL'} ➔ ${row['Final Destination'] || 'POD'}`;
+                const statusText = row['Exit'] && row['Exit'] !== '-' ? 'Border Exit Completed' : (row['Arrival Iran'] && row['Arrival Iran'] !== '-' ? 'In Transit (Iran)' : 'Arrived DXB');
+
+                // Feature 1: WhatsApp Status Update Message formatting & wa.me link
+                const waMessage = encodeURIComponent(`*AZAD WATTAN CONTAINER STATUS UPDATE*\n\n*Container No:* ${containerNo}\n*BL No:* ${blNo}\n*Route:* ${route}\n*Current Status:* ${statusText}\n\nThank you for choosing Azad Wattan General Trading Co.`);
+                const waLink = `https://wa.me/?text=${waMessage}`;
+
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-800/40 transition border-b border-slate-800/60";
-
-                const actionTd = document.createElement('td');
-                actionTd.className = "p-2.5 text-center sticky left-0 bg-[#0B1120] z-10 border-r border-slate-800 shadow-md";
-
-                if (currentRole === 'viewer') {
-                    actionTd.innerHTML = `<span class="text-[10px] text-slate-500 font-semibold">View Only</span>`;
-                } else {
-                    actionTd.innerHTML = `
-                        <button onclick="openModalForEdit(${index})" class="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold px-2.5 py-1 rounded-lg text-[10px] transition">
-                            Edit
-                        </button>
-                    `;
-                }
-                tr.appendChild(actionTd);
+                tr.className = "border-b border-slate-800/60 hover:bg-slate-800/40 transition";
+                
+                let html = `
+                    <td class="p-2.5 text-center sticky left-0 bg-[#0B1120] z-10 border-r border-slate-800 whitespace-nowrap">
+                        <div class="flex items-center justify-center space-x-1.5">
+                            <a href="${waLink}" target="_blank" title="Send WhatsApp Status Update" class="p-1 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 rounded-lg transition">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                            </a>
+                            ${currentRole !== 'viewer' ? `<button onclick="openModalForEdit(${actualIndex})" class="p-1 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/30 rounded-lg transition" title="Edit Record">✏️</button>` : ''}
+                            ${currentRole === 'admin' ? `<button onclick="deleteRecord(${actualIndex})" class="p-1 bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/30 rounded-lg transition" title="Delete Record">🗑️</button>` : ''}
+                        </div>
+                    </td>
+                `;
 
                 columns.forEach(col => {
                     if (visibleColumns.includes(col)) {
-                        const td = document.createElement('td');
-                        td.className = "p-3.5 font-medium text-slate-300";
                         let val = row[col] !== undefined && row[col] !== null ? row[col] : '-';
-                        if (col === 'Container number') td.className += " font-black text-white";
-                        else if (col === 'Iran Weight' || col === 'BL Weight') val = (val !== '-' && !isNaN(val)) ? Number(val).toLocaleString() : val;
-                        td.innerText = val;
-                        tr.appendChild(td);
+                        html += `<td class="p-3.5">${val}</td>`;
                     }
                 });
+                tr.innerHTML = html;
                 tbody.appendChild(tr);
             });
 
             document.getElementById('pageInfo').innerText = `Page ${currentPage} of ${totalPages}`;
             document.getElementById('btnPrev').disabled = currentPage === 1;
-            document.getElementById('btnNext').disabled = currentPage >= totalPages;
+            document.getElementById('btnNext').disabled = currentPage === totalPages;
         }
 
         function changePageSize() {
-            pageSize = parseInt(document.getElementById('pageSizeSelect').value);
+            pageSize = parseInt(document.getElementById('pageSizeSelect').value, 10);
             currentPage = 1;
             renderTable();
         }
 
-        function prevPage() { if (currentPage > 1) { currentPage--; renderTable(); } }
-        function nextPage() { const totalPages = Math.ceil(filteredData.length / pageSize); if (currentPage < totalPages) { currentPage++; renderTable(); } }
-
-        // ==========================================
-        // 8. VISUAL ANALYTICS ENGINE (Chart.js)
-        // ==========================================
-        function renderAnalyticsCharts() {
-            const dxb = masterData.filter(r => r['Arrival DXB'] && r['Arrival DXB'] !== '-').length;
-            const iran = masterData.filter(r => r['Arrival Iran'] && r['Arrival Iran'] !== '-').length;
-            const exit = masterData.filter(r => r['Exit'] && r['Exit'] !== '-').length;
-            const pending = masterData.length - exit;
-
-            createChart('chartStatus', 'doughnut', {
-                labels: ['Arrived DXB', 'In Transit (Iran)', 'Border Exit', 'Pending'],
-                datasets: [{
-                    data: [dxb, iran, exit, pending],
-                    backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#334155'],
-                    borderWidth: 0
-                }]
-            });
-
-            const custTonnage = {};
-            masterData.forEach(r => {
-                const cust = r['Customer name'] || 'Unknown';
-                const wt = parseFloat(r['BL Weight']) || 0;
-                custTonnage[cust] = (custTonnage[cust] || 0) + wt;
-            });
-
-            const sortedCust = Object.entries(custTonnage).sort((a, b) => b[1] - a[1]).slice(0, 5);
-            createChart('chartCustomerTonnage', 'bar', {
-                labels: sortedCust.map(c => c[0]),
-                datasets: [{
-                    label: 'Total BL Weight (KG)',
-                    data: sortedCust.map(c => c[1]),
-                    backgroundColor: '#3b82f6',
-                    borderRadius: 6
-                }]
-            });
-
-            const destCounts = {};
-            masterData.forEach(r => {
-                const dest = r['Final Destination'] || 'Unspecified';
-                destCounts[dest] = (destCounts[dest] || 0) + 1;
-            });
-
-            createChart('chartDestination', 'bar', {
-                labels: Object.keys(destCounts),
-                datasets: [{
-                    label: 'Containers Dispatched',
-                    data: Object.values(destCounts),
-                    backgroundColor: '#10b981',
-                    borderRadius: 6
-                }]
-            });
-
-            const typeCounts = {};
-            masterData.forEach(r => {
-                const type = r['Container type'] || '40 FT HC';
-                typeCounts[type] = (typeCounts[type] || 0) + 1;
-            });
-
-            createChart('chartContainerType', 'pie', {
-                labels: Object.keys(typeCounts),
-                datasets: [{
-                    data: Object.values(typeCounts),
-                    backgroundColor: ['#6366f1', '#8b5cf6', '#ec4899'],
-                    borderWidth: 0
-                }]
-            });
-        }
-
-        function createChart(canvasId, type, data) {
-            if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
-            const ctx = document.getElementById(canvasId).getContext('2d');
-            chartInstances[canvasId] = new Chart(ctx, {
-                type: type,
-                data: data,
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { labels: { color: '#94a3b8', font: { size: 11, family: 'sans-serif' } } }
-                    },
-                    scales: type === 'bar' ? {
-                        x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-                        y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
-                    } : {}
-                }
-            });
-        }
-
-        // ==========================================
-        // 9. TAB NAVIGATION ENGINE
-        // ==========================================
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.nav-btn').forEach(el => {
-                el.className = "nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white rounded-xl transition";
-            });
-
-            document.getElementById('tab-' + tabId).classList.remove('hidden');
-            const activeNav = document.getElementById('nav-' + tabId);
-            activeNav.className = "nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-bold rounded-xl bg-gradient-to-r from-blue-600/30 to-indigo-600/20 text-white border border-blue-500/40 shadow-[0_4px_12px_rgba(59,130,246,0.2)]";
-
-            if (tabId === 'analytics') renderAnalyticsCharts();
-            if (tabId === 'tracking') renderTrackingView();
-            if (tabId === 'expenses') renderExpensesView();
-            if (tabId === 'accounts') renderAccountsView();
-            if (tabId === 'statements') renderCustomerStatement();
-            if (tabId === 'members') loadMembersList();
-            if (tabId === 'history') loadVisitorHistory();
-        }
-
-        // ==========================================
-        // 10. ADVANCED CONTAINER TRACKING & HUB LOGIC
-        // ==========================================
-        function switchTrackingHub(hubKey) {
-            currentTrackingHub = hubKey;
-            ['dubai', 'iran', 'afghanistan', 'cleared', 'ignored'].forEach(h => {
-                const btn = document.getElementById('hubTab-' + h);
-                if (btn) {
-                    if (h === hubKey) {
-                        btn.className = "px-4 py-2.5 border-b-2 border-blue-500 text-blue-400 bg-slate-900/60 rounded-t-xl transition font-black";
-                    } else {
-                        btn.className = "px-4 py-2.5 text-slate-400 hover:text-white rounded-t-xl transition font-bold";
-                    }
-                }
-            });
-
-            const subTabsContainerWrapper = document.getElementById('trackingSubTabs').parentElement;
-            if (hubKey === 'cleared' || hubKey === 'ignored') {
-                subTabsContainerWrapper.style.display = 'none';
-                currentTrackingSubTab = '';
-            } else {
-                subTabsContainerWrapper.style.display = 'flex';
-                const agents = customAgentsMap[hubKey];
-                currentTrackingSubTab = agents && agents.length > 0 ? agents[0] : '';
-                renderTrackingSubTabs();
-            }
-            renderTrackingView();
-        }
-
-        function renderTrackingSubTabs() {
-            const container = document.getElementById('trackingSubTabs');
-            container.innerHTML = '';
-            const agents = customAgentsMap[currentTrackingHub] || [];
-
-            agents.forEach(agent => {
-                const btn = document.createElement('button');
-                const isActive = currentTrackingSubTab === agent;
-                btn.className = `px-3 py-1.5 rounded-xl transition font-bold text-xs ${isActive ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/30' : 'bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white border border-slate-800'}`;
-                btn.innerText = agent;
-                btn.onclick = () => {
-                    currentTrackingSubTab = agent;
-                    renderTrackingSubTabs();
-                    renderTrackingView();
-                };
-                container.appendChild(btn);
-            });
-        }
-
-        function promptAddAgent() {
-            const newAgentName = prompt(`Enter name for new agent under ${currentTrackingHub.toUpperCase()} hub:`);
-            if (!newAgentName || !newAgentName.trim()) return;
-            const formattedName = newAgentName.trim();
-
-            if (!customAgentsMap[currentTrackingHub].includes(formattedName)) {
-                customAgentsMap[currentTrackingHub].push(formattedName);
-                localStorage.setItem('azad_wattan_agents', JSON.stringify(customAgentsMap));
-                currentTrackingSubTab = formattedName;
-                renderTrackingSubTabs();
-                renderTrackingView();
-            } else {
-                alert("Agent already exists in this hub tab list.");
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
             }
         }
 
-        async function updateContainerStatusField(docId, newStatusValue) {
-            try {
-                await containersCollection.doc(docId).update({
-                    trackingStatus: newStatusValue,
-                    updatedBy: currentUsername + " (" + currentRole + ")",
-                    updatedAt: new Date().toLocaleString()
-                });
-            } catch (err) {
-                alert("Error updating status: " + err.message);
+        function nextPage() {
+            const totalPages = Math.ceil(filteredData.length / pageSize) || 1;
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable();
             }
         }
 
-        function renderTrackingView() {
-            document.getElementById('track-total').innerText = masterData.length;
-            document.getElementById('track-dxb').innerText = masterData.filter(r => r['Arrival DXB'] && r['Arrival DXB'] !== '-').length;
-            document.getElementById('track-iran').innerText = masterData.filter(r => r['Arrival Iran'] && r['Arrival Iran'] !== '-').length;
-            document.getElementById('track-exit').innerText = masterData.filter(r => r['Exit'] && r['Exit'] !== '-').length;
+        // ==========================================
+        // 8. DATA IMPORT & EXPORT (CSV & FEATURE 4: EXCEL .XLSX)
+        // ==========================================
+        function exportCSV() {
+            const csv = Papa.unparse(masterData);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Azad_Wattan_Master_Sheet_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Feature 4: Excel (.xlsx) Multi-sheet Export via SheetJS
+        function exportExcelXLSX() {
+            if (!masterData.length) {
+                alert("No data available to export.");
+                return;
+            }
+
+            // Create Master Sheet workbook
+            const wb = XLSX.utils.book_new();
             
-            filterTracking();
+            // 1. Master Sheet Data worksheet
+            const wsMaster = XLSX.utils.json_to_sheet(masterData);
+            XLSX.utils.book_append_sheet(wb, wsMaster, "Master Sheet");
+
+            // 2. Expenses & Freight Invoicing worksheet summary data
+            const expenseData = masterData.map(r => ({
+                "Container No": r['Container number'] || '',
+                "Customer": r['Customer name'] || '',
+                "BL Weight (kg)": parseFloat(r['BL Weight']) || 0,
+                "Iran Weight (kg)": parseFloat(r['Iran Weight']) || 0,
+                "Estimated Freight ($)": (parseFloat(r['BL Weight']) || 0) * 0.12,
+                "Clearance Cost ($)": 350
+            }));
+            const wsExpenses = XLSX.utils.json_to_sheet(expenseData);
+            XLSX.utils.book_append_sheet(wb, wsExpenses, "Expenses & Freight");
+
+            // 3. Container Tracking Pipeline worksheet
+            const trackingData = masterData.map(r => ({
+                "Container No": r['Container number'] || '',
+                "BL Number": r['BL number'] || '',
+                "Customer": r['Customer name'] || '',
+                "Arrival DXB": r['Arrival DXB'] || '-',
+                "Arrival Iran": r['Arrival Iran'] || '-',
+                "Exit Date": r['Exit'] || '-'
+            }));
+            const wsTracking = XLSX.utils.json_to_sheet(trackingData);
+            XLSX.utils.book_append_sheet(wb, wsTracking, "Tracking Pipeline");
+
+            // Trigger file download
+            XLSX.writeFile(wb, `Azad_Wattan_Enterprise_Report_${new Date().toISOString().slice(0, 10)}.xlsx`);
         }
 
-        function filterTracking() {
-            const query = document.getElementById('trackingSearch').value.toLowerCase();
-            const tbody = document.getElementById('trackingTableBody');
-            tbody.innerHTML = '';
+        async function importCSV(e) {
+            const file = e.target.files[0];
+            if (!file) return;
 
-            const filtered = masterData.filter(r => {
-                const matchesSearch = !query || 
-                    (r['Container number'] && r['Container number'].toLowerCase().includes(query)) ||
-                    (r['BL number'] && r['BL number'].toLowerCase().includes(query)) ||
-                    (r['Customer name'] && r['Customer name'].toLowerCase().includes(query));
-
-                if (!matchesSearch) return false;
-
-                const trackingStatus = (r['trackingStatus'] || '').trim().toUpperCase();
-                const loadingDxbVal = (r['Loading DXB'] || '').toString().trim();
-
-                if (currentTrackingHub === 'cleared') {
-                    return trackingStatus === 'CLEARED';
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: async function(results) {
+                    const importedRows = results.data;
+                    const batch = db.batch();
+                    importedRows.forEach(row => {
+                        const newRef = containersCollection.doc();
+                        batch.set(newRef, sanitizeDataForFirestore(row));
+                    });
+                    await batch.commit();
+                    alert(`Successfully imported ${importedRows.length} records into Firebase Cloud!`);
+                    e.target.value = '';
                 }
-                if (currentTrackingHub === 'ignored') {
-                    return trackingStatus === 'IGNORED' || loadingDxbVal.toUpperCase().includes('IGNORED');
-                }
-
-                if (trackingStatus === 'CLEARED' || trackingStatus === 'IGNORED' || loadingDxbVal.toUpperCase().includes('IGNORED')) {
-                    return false;
-                }
-
-                if (currentTrackingHub === 'dubai') {
-                    const jeaAgent = (r['Jebel Ali Agent'] || '').toString().trim();
-                    if (!jeaAgent) return false;
-                    if (loadingDxbVal !== '') return false;
-                    if (currentTrackingSubTab && jeaAgent.toLowerCase() !== currentTrackingSubTab.toLowerCase()) {
-                        return false;
-                    }
-                    return true;
-                } 
-                else if (currentTrackingHub === 'iran') {
-                    const iranConsignee = (r['Iran consignee'] || r['Iran Consignee'] || '').toString().trim();
-                    const loadingIranVal = (r['Loading Iran'] || '').toString().trim();
-                    if (!iranConsignee) return false;
-                    if (loadingIranVal !== '') return false;
-                    if (currentTrackingSubTab && iranConsignee.toLowerCase() !== currentTrackingSubTab.toLowerCase()) {
-                        return false;
-                    }
-                    return true;
-                } 
-                else if (currentTrackingHub === 'afghanistan') {
-                    const loadingIranVal = (r['Loading Iran'] || '').toString().trim();
-                    const afghAgent = (r['Jawaz / Afghanistan Agent'] || '').toString().trim();
-                    
-                    const hasCondition = (loadingIranVal !== '') || (afghAgent !== '');
-                    if (!hasCondition) return false;
-
-                    if (currentTrackingSubTab && afghAgent.toLowerCase() !== currentTrackingSubTab.toLowerCase()) {
-                        return false;
-                    }
-                    return true;
-                }
-                return true;
             });
-
-            filtered.sort((a, b) => {
-                let dateA = parseDDMMYY(a['Arrival DXB'] || a['Date of documents'] || a['Arrival Iran'] || a['Exit']);
-                let dateB = parseDDMMYY(b['Arrival DXB'] || b['Date of documents'] || b['Arrival Iran'] || b['Exit']);
-                return dateB - dateA;
-            });
-
-            if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">No container records match the selected hub tab / sub-tab criteria.</td></tr>`;
-                return;
-            }
-
-            filtered.forEach((r) => {
-                const tr = document.createElement('tr');
-                tr.className = "border-b border-slate-800/60 hover:bg-slate-800/45 transition";
-
-                let milestoneVal = '-';
-                if (currentTrackingHub === 'cleared') milestoneVal = r['Exit'] || r['Arrival Iran'] || r['Arrival DXB'] || '-';
-                else if (currentTrackingHub === 'ignored') milestoneVal = r['Arrival DXB'] || '-';
-                else if (currentTrackingHub === 'dubai') milestoneVal = r['Arrival DXB'] || 'En Route Jebel Ali';
-                else if (currentTrackingHub === 'iran') milestoneVal = r['Arrival Iran'] || 'En Route Bandar Abbas';
-                else if (currentTrackingHub === 'afghanistan') milestoneVal = r['Exit'] ? `Exited: ${r['Exit']}` : 'In Transit to Afgh';
-
-                const currentStatus = r['trackingStatus'] || (r['Exit'] ? 'Completed Exit' : 'In Progress');
-                const activeHubLabel = currentTrackingHub === 'cleared' ? 'Cleared' : currentTrackingHub === 'ignored' ? 'Ignored' : currentTrackingSubTab;
-
-                tr.innerHTML = `
-                    <td class="p-3.5 font-black text-white">${r['Container number'] || 'N/A'}</td>
-                    <td class="p-3.5 text-slate-300">${r['BL number'] || '-'}</td>
-                    <td class="p-3.5 text-slate-300">${r['Customer name'] || '-'}</td>
-                    <td class="p-3.5 font-bold text-blue-400">${activeHubLabel}</td>
-                    <td class="p-3.5 text-slate-400">${milestoneVal}</td>
-                    <td class="p-3.5 flex items-center space-x-2">
-                        <input type="text" id="statusInput_${r.docId}" value="${currentStatus}" class="p-1.5 text-xs bg-slate-900 border border-slate-700 rounded-lg text-white font-medium focus:outline-none focus:border-blue-500 w-28" placeholder="Status...">
-                        <button onclick="updateContainerStatusField('${r.docId}', document.getElementById('statusInput_${r.docId}').value)" class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-bold btn-3d" title="Save Status">Save</button>
-                        <button onclick="updateContainerStatusField('${r.docId}', 'CLEARED')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-bold btn-3d" title="Mark Cleared">Cleared</button>
-                        <button onclick="updateContainerStatusField('${r.docId}', 'IGNORED')" class="bg-slate-700 hover:bg-slate-600 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-bold" title="Mark Ignore">Ignore</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function renderExpensesView() {
-            let totalBLWeight = 0;
-            const tbody = document.getElementById('expensesTableBody');
-            tbody.innerHTML = '';
-
-            masterData.forEach(r => {
-                const blWt = parseFloat(r['BL Weight']) || 0;
-                const iranWt = parseFloat(r['Iran Weight']) || 0;
-                totalBLWeight += blWt;
-
-                const estFreight = (blWt / 1000) * 115;
-                const estCost = (blWt / 1000) * 75;
-                const isPaid = r['Exit'] ? 'Paid' : 'Pending';
-
-                const tr = document.createElement('tr');
-                tr.className = "border-b border-slate-800/60 hover:bg-slate-800/40 transition";
-                tr.innerHTML = `
-                    <td class="p-3.5 font-black text-white">${r['Container number']}</td>
-                    <td class="p-3.5 text-slate-300">${r['Customer name']}</td>
-                    <td class="p-3.5 text-slate-300">${blWt.toLocaleString()} kg</td>
-                    <td class="p-3.5 text-slate-300">${iranWt ? iranWt.toLocaleString() + ' kg' : '-'}</td>
-                    <td class="p-3.5 text-emerald-400 font-bold">$${estFreight.toFixed(2)}</td>
-                    <td class="p-3.5 text-amber-400">$${estCost.toFixed(2)}</td>
-                    <td class="p-3.5 font-black text-white">$${estFreight.toFixed(2)}</td>
-                    <td class="p-3.5"><span class="px-2.5 py-1 text-[10px] font-black uppercase rounded-lg ${isPaid === 'Paid' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}">${isPaid}</span></td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            const totalMT = totalBLWeight / 1000;
-            document.getElementById('exp-total-tonnage').innerText = totalMT.toLocaleString('en-US', {maximumFractionDigits: 2}) + ' MT';
-            document.getElementById('exp-est-revenue').innerText = '$' + (totalMT * 115).toLocaleString('en-US', {maximumFractionDigits: 2});
-            document.getElementById('exp-est-expenses').innerText = '$' + (totalMT * 75).toLocaleString('en-US', {maximumFractionDigits: 2});
-        }
-
-        function renderAccountsView() {
-            document.getElementById('acc-dxb-count').innerText = masterData.filter(r => r['Arrival DXB']).length;
-            document.getElementById('acc-iran-count').innerText = masterData.filter(r => r['Arrival Iran']).length;
-            document.getElementById('acc-mahirud-count').innerText = masterData.filter(r => r['Final Destination'] === 'Mahirud').length;
-            document.getElementById('acc-nimroz-count').innerText = masterData.filter(r => r['Final Destination'] === 'Nimroz').length;
         }
 
         // ==========================================
-        // 11. CUSTOMER STATEMENTS & PDF GENERATION
+        // 9. MODAL EDIT/ADD FORM ENGINE WITH AUDIT LOGGING
         // ==========================================
-        function populateCustomerDropdown() {
-            const select = document.getElementById('customerSelect');
-            select.innerHTML = '<option value="">-- Select Customer --</option>';
-
-            const customers = [...new Set(masterData.map(r => r['Customer name']))].filter(Boolean).sort();
-            customers.forEach(cust => {
-                const opt = document.createElement('option');
-                opt.value = cust;
-                opt.innerText = cust;
-                select.appendChild(opt);
-            });
+        function openModalForAdd() {
+            document.getElementById('modalTitle').innerText = "Add New Container Record";
+            document.getElementById('modalSubtitle').innerText = "Fill out fields to add a new container shipment.";
+            document.getElementById('editIndex').value = "-1";
+            document.getElementById('recordForm').reset();
+            document.getElementById('auditTrailBox').classList.add('hidden');
+            document.getElementById('modalOverlay').classList.remove('hidden');
         }
 
-        function renderCustomerStatement() {
-            const cust = document.getElementById('customerSelect').value;
-            document.getElementById('stmtDate').innerText = new Date().toLocaleDateString('en-GB');
-
-            if (!cust) {
-                document.getElementById('stmtCustomerName').innerText = "Select a Customer";
-                document.getElementById('stmtCount').innerText = "0";
-                document.getElementById('stmtBLWeight').innerText = "0 kg";
-                document.getElementById('stmtIranWeight').innerText = "0 kg";
-                document.getElementById('stmtTableBody').innerHTML = '<tr><td colspan="8" class="p-4 text-center text-slate-400">Select a customer above to render detailed statement.</td></tr>';
-                return;
-            }
-
-            const records = masterData.filter(r => r['Customer name'] === cust);
-            document.getElementById('stmtCustomerName').innerText = cust;
-            document.getElementById('stmtCount').innerText = records.length;
-
-            const totalBL = records.reduce((s, r) => s + (parseFloat(r['BL Weight']) || 0), 0);
-            const totalIran = records.reduce((s, r) => s + (parseFloat(r['Iran Weight']) || 0), 0);
-
-            document.getElementById('stmtBLWeight').innerText = totalBL.toLocaleString() + ' kg';
-            document.getElementById('stmtIranWeight').innerText = totalIran.toLocaleString() + ' kg';
-
-            const tbody = document.getElementById('stmtTableBody');
-            tbody.innerHTML = '';
-            records.forEach(r => {
-                const tr = document.createElement('tr');
-                tr.className = "border-b border-slate-200 hover:bg-slate-50";
-                tr.innerHTML = `
-                    <td class="p-3">${r['S. No']}</td>
-                    <td class="p-3 font-bold">${r['Container number']}</td>
-                    <td class="p-3">${r['BL number'] || '-'}</td>
-                    <td class="p-3">${r['Item'] || '-'}</td>
-                    <td class="p-3">${r['BL Weight'] ? Number(r['BL Weight']).toLocaleString() : '-'}</td>
-                    <td class="p-3">${r['Iran Weight'] ? Number(r['Iran Weight']).toLocaleString() : '-'}</td>
-                    <td class="p-3">${r['Final Destination'] || '-'}</td>
-                    <td class="p-3">${r['Exit'] || '-'}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function downloadPDFStatement() {
-            const element = document.getElementById('statementCard');
-            const cust = document.getElementById('customerSelect').value || 'Statement';
-            const opt = {
-                margin:       0.5,
-                filename:     `Azad_Wattan_Statement_${cust}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2 },
-                jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
-            };
-            html2pdf().set(opt).from(element).save();
-        }
-
-        // ==========================================
-        // 12. FIREBASE DATA CREATION & MUTATION (CRUD)
-        // ==========================================
         function openModalForEdit(index) {
             const row = masterData[index];
+            document.getElementById('modalTitle').innerText = `Edit Container: ${row['Container number'] || ''}`;
+            document.getElementById('modalSubtitle').innerText = "Update master sheet values below.";
             document.getElementById('editIndex').value = index;
-            document.getElementById('modalTitle').innerText = `Modify Container: ${row['Container number'] || ''}`;
-            document.getElementById('modalSubtitle').innerText = `Editing S. No: ${row['S. No']}`;
-
-            document.getElementById('auditUser').innerText = row.updatedBy || 'System Import';
-            document.getElementById('auditTime').innerText = row.updatedAt || 'Original Entry';
 
             document.getElementById('f_sno').value = row['S. No'] || '';
             document.getElementById('f_doc_date').value = row['Date of documents'] || '';
@@ -1756,26 +1515,22 @@
             document.getElementById('f_afgh_agent').value = row['Jawaz / Afghanistan Agent'] || '';
             document.getElementById('f_cpage').value = row['C/Page'] || '';
 
+            document.getElementById('auditUser').innerText = row._lastUpdatedBy || currentUsername || 'System';
+            document.getElementById('auditTime').innerText = row._lastUpdatedTime || new Date().toLocaleString();
+            document.getElementById('auditTrailBox').classList.remove('hidden');
+
             document.getElementById('modalOverlay').classList.remove('hidden');
         }
 
-        function openModalForAdd() {
-            document.getElementById('editIndex').value = -1;
-            document.getElementById('modalTitle').innerText = "Add New Container Record";
-            document.getElementById('modalSubtitle').innerText = "Enter details for a new container shipment.";
-            document.getElementById('auditUser').innerText = currentUsername;
-            document.getElementById('auditTime').innerText = new Date().toLocaleString();
-            document.getElementById('recordForm').reset();
-            document.getElementById('modalOverlay').classList.remove('hidden');
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.add('hidden');
         }
-
-        function closeModal() { document.getElementById('modalOverlay').classList.add('hidden'); }
 
         async function handleFormSubmit(e) {
             e.preventDefault();
-            const index = parseInt(document.getElementById('editIndex').value);
+            const editIndex = parseInt(document.getElementById('editIndex').value, 10);
 
-            const recordData = {
+            const rowData = {
                 "S. No": document.getElementById('f_sno').value,
                 "Date of documents": document.getElementById('f_doc_date').value,
                 "Customer name": document.getElementById('f_customer').value,
@@ -1785,8 +1540,8 @@
                 "Cross Stuffing Container No": document.getElementById('f_cross_container').value,
                 "Container type": document.getElementById('f_type').value,
                 "SOC / COC": document.getElementById('f_soc_coc').value,
-                "Iran Weight": document.getElementById('f_iran_weight').value,
                 "BL Weight": document.getElementById('f_bl_weight').value,
+                "Iran Weight": document.getElementById('f_iran_weight').value,
                 "Consignee": document.getElementById('f_consignee').value,
                 "Shipper": document.getElementById('f_shipper').value,
                 "Item": document.getElementById('f_item').value,
@@ -1806,50 +1561,454 @@
                 "Exit": document.getElementById('f_exit').value,
                 "Jawaz / Afghanistan Agent": document.getElementById('f_afgh_agent').value,
                 "C/Page": document.getElementById('f_cpage').value,
-                updatedBy: currentUsername + " (" + currentRole + ")",
-                updatedAt: new Date().toLocaleString()
+                "_lastUpdatedBy": currentUsername || 'System',
+                "_lastUpdatedTime": new Date().toLocaleString()
             };
 
-            try {
-                if (index === -1) {
-                    await containersCollection.add(sanitizeDataForFirestore(recordData));
-                } else {
-                    const docId = filteredData[index].docId || masterData[index].docId;
-                    await containersCollection.doc(docId).set(sanitizeDataForFirestore(recordData), { merge: true });
-                }
-                closeModal();
-            } catch (err) {
-                alert("Error saving record: " + err.message);
+            const containerNo = rowData["Container number"];
+
+            if (editIndex === -1) {
+                // Add new record & Log Audit Trail
+                await containersCollection.add(sanitizeDataForFirestore(rowData));
+                await logAuditAction("CREATE", containerNo, `New container added by ${currentUsername}`);
+                alert("Container record added successfully!");
+            } else {
+                // Update existing record & Log Audit Trail
+                const docId = masterData[editIndex].docId;
+                await containersCollection.doc(docId).set(sanitizeDataForFirestore(rowData));
+                await logAuditAction("UPDATE", containerNo, `Container record modified by ${currentUsername}`);
+                alert("Container record updated successfully!");
+            }
+
+            closeModal();
+        }
+
+        async function deleteRecord(index) {
+            const row = masterData[index];
+            const containerNo = row['Container number'] || 'N/A';
+            if (!confirm(`Are you sure you want to delete container record ${containerNo}?`)) return;
+
+            if (row.docId) {
+                await containersCollection.doc(row.docId).delete();
+                await logAuditAction("DELETE", containerNo, `Container deleted by ${currentUsername}`);
+                alert("Container record deleted successfully.");
             }
         }
 
-        function exportCSV() {
-            const csv = Papa.unparse(masterData);
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.setAttribute('download', 'azad_wattan_master_sheet.csv');
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+        // ==========================================
+        // 10. TABS SWITCHING ENGINE
+        // ==========================================
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.className = "nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white rounded-xl transition";
+            });
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            if (activeBtn) {
+                activeBtn.className = "nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-bold rounded-xl bg-gradient-to-r from-blue-600/30 to-indigo-600/20 text-white border border-blue-500/40 shadow-[0_4px_12px_rgba(59,130,246,0.2)]";
+            }
+
+            if (tabId === 'analytics') renderAnalyticsCharts();
+            if (tabId === 'tracking') renderTrackingHub();
+            if (tabId === 'expenses') renderExpensesTable();
+            if (tabId === 'accounts') renderRegionalAccounts();
         }
 
-        function importCSV(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            Papa.parse(file, {
-                header: true,
-                skipEmptyLines: true,
-                complete: async function(results) {
-                    const batch = db.batch();
-                    results.data.forEach(row => {
-                        const newDocRef = containersCollection.doc();
-                        batch.set(newDocRef, sanitizeDataForFirestore(row));
-                    });
-                    await batch.commit();
-                    alert("CSV Imported and synced to Firestore successfully!");
-                }
+        // ==========================================
+        // 11. ANALYTICS & CHARTS ENGINE
+        // ==========================================
+        function renderAnalyticsCharts() {
+            const destroyChart = (id) => {
+                if (chartInstances[id]) chartInstances[id].destroy();
+            };
+
+            // 1. Status Chart
+            destroyChart('chartStatus');
+            const arrivedDxbCount = masterData.filter(r => r['Arrival DXB'] && r['Arrival DXB'] !== '-').length;
+            const inIranCount = masterData.filter(r => r['Arrival Iran'] && r['Arrival Iran'] !== '-').length;
+            const exitedCount = masterData.filter(r => r['Exit'] && r['Exit'] !== '-').length;
+            const pendingCount = masterData.length - exitedCount;
+
+            const ctxStatus = document.getElementById('chartStatus').getContext('2d');
+            chartInstances['chartStatus'] = new Chart(ctxStatus, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Arrived DXB', 'In Transit (Iran)', 'Border Exit Completed', 'Pending Pipeline'],
+                    datasets: [{
+                        data: [arrivedDxbCount, inIranCount, exitedCount, pendingCount],
+                        backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#64748b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 10 } } } } }
             });
+
+            // 2. Customer Tonnage Chart
+            destroyChart('chartCustomerTonnage');
+            const customerTonnageMap = {};
+            masterData.forEach(r => {
+                const cust = r['Customer name'] || 'Unknown';
+                const wt = parseFloat(r['BL Weight']) || 0;
+                customerTonnageMap[cust] = (customerTonnageMap[cust] || 0) + wt;
+            });
+            const topCustomers = Object.entries(customerTonnageMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
+
+            const ctxCust = document.getElementById('chartCustomerTonnage').getContext('2d');
+            chartInstances['chartCustomerTonnage'] = new Chart(ctxCust, {
+                type: 'bar',
+                data: {
+                    labels: topCustomers.map(c => c[0]),
+                    datasets: [{
+                        label: 'Total BL Weight (kg)',
+                        data: topCustomers.map(c => c[1]),
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 6
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: '#cbd5e1' } }, y: { ticks: { color: '#cbd5e1' } } }, plugins: { legend: { display: false } } }
+            });
+
+            // 3. Destination Chart
+            destroyChart('chartDestination');
+            const destMap = {};
+            masterData.forEach(r => {
+                const dest = r['Final Destination'] || 'Other';
+                destMap[dest] = (destMap[dest] || 0) + 1;
+            });
+            const topDest = Object.entries(destMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
+
+            const ctxDest = document.getElementById('chartDestination').getContext('2d');
+            chartInstances['chartDestination'] = new Chart(ctxDest, {
+                type: 'pie',
+                data: {
+                    labels: topDest.map(d => d[0]),
+                    datasets: [{
+                        data: topDest.map(d => d[1]),
+                        backgroundColor: ['#6366f1', '#3b82f6', '#14b8a6', '#f59e0b', '#ec4899'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 10 } } } } }
+            });
+
+            // 4. Equipment Type Chart
+            destroyChart('chartContainerType');
+            const typeMap = {};
+            masterData.forEach(r => {
+                const t = r['Container type'] || '40 FT HC';
+                typeMap[t] = (typeMap[t] || 0) + 1;
+            });
+
+            const ctxType = document.getElementById('chartContainerType').getContext('2d');
+            chartInstances['chartContainerType'] = new Chart(ctxType, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(typeMap),
+                    datasets: [{
+                        data: Object.values(typeMap),
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 10 } } } } }
+            });
+        }
+
+// ==========================================
+// CONTAINER TRACKING ENGINE (Updated for Requirements 1-7)
+// ==========================================
+
+function switchTrackingHub(hub) {
+    currentTrackingHub = hub;
+    ['dubai', 'iran', 'afghanistan', 'cleared', 'ignored'].forEach(h => {
+        const btn = document.getElementById(`hubTab-${h}`);
+        if (btn) {
+            btn.className = h === hub ? "px-4 py-2.5 border-b-2 border-blue-500 text-blue-400 bg-slate-900/60 rounded-t-xl transition font-black" : "px-4 py-2.5 text-slate-400 hover:text-white rounded-t-xl transition font-bold";
+        }
+    });
+
+    const agents = customAgentsMap[currentTrackingHub] || ['General'];
+    currentTrackingSubTab = agents[0];
+    renderTrackingSubTabs();
+    renderTrackingTable();
+}
+
+function renderTrackingSubTabs() {
+    const container = document.getElementById('trackingSubTabs');
+    container.innerHTML = '';
+    const agents = customAgentsMap[currentTrackingHub] || ['General'];
+
+    agents.forEach(agent => {
+        const btn = document.createElement('button');
+        btn.className = agent === currentTrackingSubTab ? "px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold shadow" : "px-3 py-1.5 bg-slate-800/80 text-slate-300 hover:bg-slate-700 rounded-lg text-xs font-medium transition";
+        btn.innerText = agent;
+        btn.onclick = () => {
+            currentTrackingSubTab = agent;
+            renderTrackingSubTabs();
+            renderTrackingTable();
+        };
+        container.appendChild(btn);
+    });
+}
+
+function promptAddAgent() {
+    const newAgent = prompt(`Enter new agent name for ${currentTrackingHub.toUpperCase()} hub:`);
+    if (!newAgent || !newAgent.trim()) return;
+
+    if (!customAgentsMap[currentTrackingHub]) customAgentsMap[currentTrackingHub] = [];
+    customAgentsMap[currentTrackingHub].push(newAgent.trim());
+    localStorage.setItem('azad_wattan_agents', JSON.stringify(customAgentsMap));
+
+    currentTrackingSubTab = newAgent.trim();
+    renderTrackingSubTabs();
+    renderTrackingTable();
+}
+
+function renderTrackingTable() {
+    const tbody = document.getElementById('trackingTableBody');
+    tbody.innerHTML = '';
+
+    let filtered = masterData.filter(r => {
+        const trackingStatus = r['TrackingStatus'] || 'active';
+        const loadingDxb = (r['Loading DXB'] || '').trim().toUpperCase();
+        const jebelAgent = (r['Jebel Ali Agent'] || '').trim();
+        const iranConsignee = (r['Iran consignee'] || '').trim();
+        const loadingIran = (r['Loading Iran'] || '').trim();
+        const afghAgent = (r['Jawaz / Afghanistan Agent'] || '').trim();
+
+        // Requirement 3: Ignored Container Tab filter
+        if (currentTrackingHub === 'ignored') {
+            return trackingStatus === 'ignored' || loadingDxb === 'IGNORED';
+        }
+        // Requirement 1: Cleared Container Tab filter
+        if (currentTrackingHub === 'cleared') {
+            return trackingStatus === 'cleared' || (r['Exit'] && r['Exit'] !== '-');
+        }
+        
+        // Exclude items already cleared or ignored from hub tabs
+        if (trackingStatus === 'cleared' || trackingStatus === 'ignored' || loadingDxb === 'IGNORED') {
+            return false;
+        }
+
+        // Requirement 2: Dubai Tab logic
+        if (currentTrackingHub === 'dubai') {
+            const hasAgent = jebelAgent !== '' && jebelAgent !== '-';
+            const loadingDxbEmpty = !r['Loading DXB'] || r['Loading DXB'] === '-';
+            return hasAgent && loadingDxbEmpty && jebelAgent === currentTrackingSubTab;
+        }
+
+        // Requirement 4: Iran Tab logic
+        if (currentTrackingHub === 'iran') {
+            const hasConsignee = iranConsignee !== '' && iranConsignee !== '-';
+            const loadingIranEmpty = !loadingIran || loadingIran === '-';
+            const iranAgent = (r['Info Iran'] || 'Almas').trim();
+            return hasConsigness && loadingIranEmpty && iranAgent === currentTrackingSubTab;
+        }
+
+        // Requirement 5: Afghanistan Tab logic
+        if (currentTrackingHub === 'afghanistan') {
+            const hasLoadingIran = loadingIran !== '' && loadingIran !== '-';
+            const hasAfghAgent = afghAgent !== '' && afghAgent !== '-';
+            return (hasLoadingIran || hasAfghAgent) && (afghAgent === currentTrackingSubTab || !afghAgent);
+        }
+
+        return true;
+    });
+
+    // Update KPI metrics summary cards
+    document.getElementById('track-total').innerText = masterData.length;
+    document.getElementById('track-dxb').innerText = masterData.filter(r => r['Arrival DXB'] && r['Arrival DXB'] !== '-').length;
+    document.getElementById('track-iran').innerText = masterData.filter(r => r['Arrival Iran'] && r['Arrival Iran'] !== '-').length;
+    document.getElementById('track-exit').innerText = masterData.filter(r => r['Exit'] && r['Exit'] !== '-').length;
+
+    filtered.forEach(row => {
+        const actualIndex = masterData.indexOf(row);
+        const currentCustomStatus = row['CustomStatusBox'] || 'In Progress';
+        const tr = document.createElement('tr');
+        tr.className = "border-b border-slate-800/60 hover:bg-slate-800/40 transition";
+        
+        tr.innerHTML = `
+            <td class="p-3.5 font-bold text-white font-mono">${row['Container number'] || '-'}</td>
+            <td class="p-3.5">${row['BL number'] || '-'}</td>
+            <td class="p-3.5 font-semibold text-blue-400">${row['Customer name'] || '-'}</td>
+            <td class="p-3.5"><span class="px-2 py-1 bg-slate-800 rounded font-bold text-slate-300">${currentTrackingSubTab}</span></td>
+            <td class="p-3.5">${row['Date of documents'] || '-'}</td>
+            <td class="p-3.5 flex items-center space-x-2">
+                <!-- Requirement 7: Easily modifiable status box -->
+                <input type="text" id="statusBox_${actualIndex}" value="${currentCustomStatus}" onchange="updateStatusBoxValue(${actualIndex}, this.value)" placeholder="Enter status..." class="w-32 p-1.5 text-xs bg-slate-900 border border-slate-700 rounded-lg text-white font-semibold focus:outline-none focus:border-blue-500">
+                
+                <!-- Requirement 6 & 1: Cleared and Ignore buttons next to status box -->
+                <button onclick="setContainerTrackingStatus(${actualIndex}, 'cleared')" class="px-2.5 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 font-bold rounded-lg text-[10px] transition">Cleared</button>
+                <button onclick="setContainerTrackingStatus(${actualIndex}, 'ignored')" class="px-2.5 py-1.5 bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/30 font-bold rounded-lg text-[10px] transition">Ignore</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function updateStatusBoxValue(index, value) {
+    if (masterData[index]) {
+        masterData[index]['CustomStatusBox'] = value;
+        if (masterData[index].docId) {
+            containersCollection.doc(masterData[index].docId).update({ CustomStatusBox: value });
+        }
+    }
+}
+
+async function setContainerTrackingStatus(index, status) {
+    const row = masterData[index];
+    if (!row) return;
+    
+    row['TrackingStatus'] = status;
+    if (status === 'cleared') {
+        row['Exit'] = new Date().toISOString().slice(0, 10);
+    }
+
+    if (row.docId) {
+        await containersCollection.doc(row.docId).update({ 
+            TrackingStatus: status,
+            Exit: row['Exit'] || '-'
+        });
+    }
+
+    renderTrackingTable();
+}
+
+        // ==========================================
+        // FEATURE 3: ENHANCED FINANCIAL SUMMARY CARDS & EXPENSES TAB
+        // ==========================================
+        function updateEnhancedFinancialCards() {
+            const activeContainersCount = masterData.filter(r => !r['Exit'] || r['Exit'] === '-').length;
+            
+            let totalRevenue = 0;
+            let totalExpenses = 0;
+
+            masterData.forEach(r => {
+                const wt = parseFloat(r['BL Weight']) || 0;
+                totalRevenue += wt * 0.12; // Estimated freight fee per kg
+                totalExpenses += 350; // Standard transit clearance cost per container
+            });
+
+            const activeEl = document.getElementById('exp-total-active');
+            const revEl = document.getElementById('exp-est-revenue');
+            const expEl = document.getElementById('exp-est-expenses');
+
+            if (activeEl) activeEl.innerText = activeContainersCount;
+            if (revEl) revEl.innerText = `$${totalRevenue.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
+            if (expEl) expEl.innerText = `$${totalExpenses.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
+        }
+
+        function renderExpensesTable() {
+            updateEnhancedFinancialCards();
+            const tbody = document.getElementById('expensesTableBody');
+            tbody.innerHTML = '';
+
+            masterData.forEach(row => {
+                const wt = parseFloat(row['BL Weight']) || 0;
+                const iranWt = parseFloat(row['Iran Weight']) || 0;
+                const estFreight = wt * 0.12;
+                const clearanceCost = 350;
+                const netInvoiced = estFreight - clearanceCost;
+
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-slate-800/60 hover:bg-slate-800/40 transition";
+                tr.innerHTML = `
+                    <td class="p-3.5 font-bold text-white font-mono">${row['Container number'] || '-'}</td>
+                    <td class="p-3.5 text-blue-400 font-semibold">${row['Customer name'] || '-'}</td>
+                    <td class="p-3.5">${wt.toLocaleString()} kg</td>
+                    <td class="p-3.5">${iranWt.toLocaleString()} kg</td>
+                    <td class="p-3.5 font-bold text-emerald-400">$${estFreight.toFixed(2)}</td>
+                    <td class="p-3.5 text-amber-400">$${clearanceCost.toFixed(2)}</td>
+                    <td class="p-3.5 font-black text-white">$${netInvoiced.toFixed(2)}</td>
+                    <td class="p-3.5"><span class="px-2 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded font-black text-[10px]">Invoiced & Paid</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ==========================================
+        // 13. REGIONAL ACCOUNTS & STATEMENTS
+        // ==========================================
+        function renderRegionalAccounts() {
+            document.getElementById('acc-dxb-count').innerText = masterData.filter(r => r['Arrival DXB'] && r['Arrival DXB'] !== '-').length;
+            document.getElementById('acc-iran-count').innerText = masterData.filter(r => r['Arrival Iran'] && r['Arrival Iran'] !== '-').length;
+            document.getElementById('acc-mahirud-count').innerText = masterData.filter(r => r['Final Destination'] && r['Final Destination'].toLowerCase().includes('mahirud')).length;
+            document.getElementById('acc-nimroz-count').innerText = masterData.filter(r => r['Final Destination'] && r['Final Destination'].toLowerCase().includes('nimroz')).length;
+        }
+
+        function populateCustomerDropdown() {
+            const select = document.getElementById('customerSelect');
+            if (!select) return;
+            const customers = [...new Set(masterData.map(r => r['Customer name']))].filter(Boolean).sort();
+            select.innerHTML = '<option value="">-- Select Customer --</option>';
+            customers.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.innerText = c;
+                select.appendChild(opt);
+            });
+        }
+
+        function renderCustomerStatement() {
+            const customer = document.getElementById('customerSelect').value;
+            const tbody = document.getElementById('stmtTableBody');
+            document.getElementById('stmtDate').innerText = new Date().toLocaleDateString();
+
+            if (!customer) {
+                document.getElementById('stmtCustomerName').innerText = "Select a Customer";
+                document.getElementById('stmtCount').innerText = "0";
+                document.getElementById('stmtBLWeight').innerText = "0 kg";
+                document.getElementById('stmtIranWeight').innerText = "0 kg";
+                tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400">Select a customer above to render detailed statement.</td></tr>`;
+                return;
+            }
+
+            document.getElementById('stmtCustomerName').innerText = customer;
+            const rows = masterData.filter(r => r['Customer name'] === customer);
+
+            let totalBL = 0;
+            let totalIran = 0;
+            tbody.innerHTML = '';
+
+            rows.forEach((r, idx) => {
+                const blWt = parseFloat(r['BL Weight']) || 0;
+                const iranWt = parseFloat(r['Iran Weight']) || 0;
+                totalBL += blWt;
+                totalIran += iranWt;
+
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-slate-200";
+                tr.innerHTML = `
+                    <td class="p-3 font-bold">${idx + 1}</td>
+                    <td class="p-3 font-mono font-bold">${r['Container number'] || '-'}</td>
+                    <td class="p-3">${r['BL number'] || '-'}</td>
+                    <td class="p-3">${r['Item'] || '-'}</td>
+                    <td class="p-3">${blWt.toLocaleString()}</td>
+                    <td class="p-3">${iranWt.toLocaleString()}</td>
+                    <td class="p-3">${r['Final Destination'] || '-'}</td>
+                    <td class="p-3">${r['Exit'] || '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('stmtCount').innerText = rows.length;
+            document.getElementById('stmtBLWeight').innerText = totalBL.toLocaleString() + " kg";
+            document.getElementById('stmtIranWeight').innerText = totalIran.toLocaleString() + " kg";
+        }
+
+        function downloadPDFStatement() {
+            const element = document.getElementById('statementCard');
+            const customer = document.getElementById('customerSelect').value || 'Customer_Statement';
+            const opt = {
+                margin:       10,
+                filename:     `Azad_Wattan_Statement_${customer.replace(/\s+/g, '_')}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+            html2pdf().from(element).set(opt).save();
         }
     </script>
 </body>
