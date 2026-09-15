@@ -70,11 +70,11 @@
                 <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold transition shadow-sm">Register & Request Verification Code</button>
             </form>
 
-            <!-- Verification Code Input Screen (Shown after signup if unverified) -->
+            <!-- Verification Code Input Screen -->
             <div id="verificationScreen" class="space-y-4 text-xs hidden">
                 <div class="bg-blue-50 border border-blue-200 p-3 rounded text-blue-900">
                     <p class="font-bold mb-1">Registration Pending Admin Verification</p>
-                    <p class="text-[11px]">Your account has been created. Please enter the 6-digit verification code provided by your system administrator, or check the Members panel if logged in as admin.</p>
+                    <p class="text-[11px]">Your account has been created. Please enter the 6-digit verification code provided by your system administrator.</p>
                 </div>
                 <div>
                     <label class="block font-semibold mb-1 text-slate-600">Enter Admin Verification Code</label>
@@ -128,7 +128,6 @@
             <button onclick="switchTab('statements')" id="nav-statements" class="nav-btn w-full text-left flex items-center px-5 py-3 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
                 Customer Statements
             </button>
-            <!-- Admin-Only Navigation Tabs -->
             <button onclick="switchTab('members')" id="nav-members" class="nav-btn admin-only hidden w-full text-left flex items-center px-5 py-3 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition border-t border-slate-800">
                 Members Management 🛡️
             </button>
@@ -284,7 +283,7 @@
             </div>
         </div>
 
-        <!-- TAB 3: CONTAINER TRACKING (UPDATED WITH CLEARED & IGNORED TABS, SORTING & AGENTS) -->
+        <!-- TAB 3: CONTAINER TRACKING -->
         <div id="tab-tracking" class="tab-content p-8 hidden">
             <div class="mb-6 flex justify-between items-center">
                 <div>
@@ -307,9 +306,7 @@
 
             <!-- SUB-TABS CONTAINER & DYNAMIC AGENT ADDITION -->
             <div class="flex items-center justify-between bg-white px-4 py-2 rounded-t-lg border-x border-t border-slate-200">
-                <div id="trackingSubTabs" class="flex space-x-2 overflow-x-auto text-xs font-semibold py-1">
-                    <!-- Sub-tabs injected dynamically via JS based on active hub -->
-                </div>
+                <div id="trackingSubTabs" class="flex space-x-2 overflow-x-auto text-xs font-semibold py-1"></div>
                 <button onclick="promptAddAgent()" title="Add New Agent" class="ml-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded text-xs flex items-center space-x-1 flex-shrink-0">
                     <span>+ Add Agent</span>
                 </button>
@@ -681,7 +678,6 @@
             afghanistan: ['Gulbadin', 'Kaleem Ullah', 'Niamat Ullah', 'Asadullah Herat', 'Asad Afghan Farah', 'Pashtoon Yar', 'Ahmad Ullah']
         };
 
-        // Load persisted custom agents from localStorage if available
         const savedAgents = localStorage.getItem('azad_wattan_agents');
         if (savedAgents) {
             try {
@@ -706,7 +702,6 @@
             "Info Iran", "Loading Iran", "Exit", "Jawaz / Afghanistan Agent", "C/Page"
         ];
 
-        // Firestore key sanitizer helpers to prevent errors with '.' or '/'
         function sanitizeDataForFirestore(data) {
             const sanitized = {};
             for (let key in data) {
@@ -725,7 +720,6 @@
             return parsed;
         }
 
-        // Date parser for "dd.mm.yy" format
         function parseDDMMYY(dateStr) {
             if (!dateStr || dateStr === '-') return new Date(0);
             const parts = dateStr.toString().split('.');
@@ -1377,7 +1371,7 @@
         }
 
         // ==========================================
-        // 10. ADVANCED CONTAINER TRACKING & HUB LOGIC (UPDATED WITH CLEARED, IGNORED & PERSISTENT AGENTS)
+        // 10. ADVANCED CONTAINER TRACKING & HUB LOGIC
         // ==========================================
         function switchTrackingHub(hubKey) {
             currentTrackingHub = hubKey;
@@ -1431,7 +1425,6 @@
 
             if (!customAgentsMap[currentTrackingHub].includes(formattedName)) {
                 customAgentsMap[currentTrackingHub].push(formattedName);
-                // Save updated agents map to localStorage
                 localStorage.setItem('azad_wattan_agents', JSON.stringify(customAgentsMap));
                 currentTrackingSubTab = formattedName;
                 renderTrackingSubTabs();
@@ -1478,16 +1471,13 @@
                 const trackingStatus = (r['trackingStatus'] || '').trim().toUpperCase();
                 const loadingDxbVal = (r['Loading DXB'] || '').toString().trim();
 
-                // 1. Cleared Tab Check
                 if (currentTrackingHub === 'cleared') {
                     return trackingStatus === 'CLEARED';
                 }
-                // 2. Ignored Tab Check
                 if (currentTrackingHub === 'ignored') {
                     return trackingStatus === 'IGNORED' || loadingDxbVal.toUpperCase().includes('IGNORED');
                 }
 
-                // 3. For active hubs (Dubai, Iran, Afghanistan): exclude any container marked as CLEARED or IGNORED
                 if (trackingStatus === 'CLEARED' || trackingStatus === 'IGNORED' || loadingDxbVal.toUpperCase().includes('IGNORED')) {
                     return false;
                 }
@@ -1526,11 +1516,10 @@
                 return true;
             });
 
-            // Sort filtered container records according to date ("dd.mm.yy")
             filtered.sort((a, b) => {
                 let dateA = parseDDMMYY(a['Arrival DXB'] || a['Date of documents'] || a['Arrival Iran'] || a['Exit']);
                 let dateB = parseDDMMYY(b['Arrival DXB'] || b['Date of documents'] || b['Arrival Iran'] || b['Exit']);
-                return dateB - dateA; // Descending (most recent first)
+                return dateB - dateA;
             });
 
             if (filtered.length === 0) {
@@ -1775,64 +1764,50 @@
                 "Exit": document.getElementById('f_exit').value,
                 "Jawaz / Afghanistan Agent": document.getElementById('f_afgh_agent').value,
                 "C/Page": document.getElementById('f_cpage').value,
-                "updatedBy": currentUsername + " (" + currentRole + ")",
-                "updatedAt": new Date().toLocaleString()
+                updatedBy: currentUsername + " (" + currentRole + ")",
+                updatedAt: new Date().toLocaleString()
             };
 
             try {
-                const sanitizedPayload = sanitizeDataForFirestore(recordData);
-                if (index >= 0) {
-                    const docId = masterData[index].docId;
-                    await containersCollection.doc(docId).set(sanitizedPayload, { merge: true });
+                if (index === -1) {
+                    await containersCollection.add(sanitizeDataForFirestore(recordData));
                 } else {
-                    await containersCollection.add(sanitizedPayload);
+                    const docId = filteredData[index].docId || masterData[index].docId;
+                    await containersCollection.doc(docId).set(sanitizeDataForFirestore(recordData), { merge: true });
                 }
                 closeModal();
             } catch (err) {
-                alert("Error saving record to Firebase: " + err.message);
+                alert("Error saving record: " + err.message);
             }
         }
 
-        // ==========================================
-        // 13. BATCH CSV IMPORT & EXPORT ENGINE
-        // ==========================================
-        function importCSV(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+        function exportCSV() {
+            const csv = Papa.unparse(masterData);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute('download', 'azad_wattan_master_sheet.csv');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
 
+        function importCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
             Papa.parse(file, {
                 header: true,
                 skipEmptyLines: true,
                 complete: async function(results) {
-                    const records = results.data.filter(r => r['S. No'] && r['S. No'].toString().trim() !== '');
-                    if (records.length === 0) return;
-
                     const batch = db.batch();
-                    records.forEach(row => {
+                    results.data.forEach(row => {
                         const newDocRef = containersCollection.doc();
                         batch.set(newDocRef, sanitizeDataForFirestore(row));
                     });
-
-                    try {
-                        await batch.commit();
-                        alert(`${records.length} records imported successfully to Firebase!`);
-                    } catch (err) {
-                        alert("Batch upload error: " + err.message);
-                    }
+                    await batch.commit();
+                    alert("CSV Imported and synced to Firestore successfully!");
                 }
             });
-        }
-
-        function exportCSV() {
-            const cleanData = masterData.map(({ docId, ...rest }) => rest);
-            const csv = Papa.unparse(cleanData);
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.setAttribute("download", "Azad_Wattan_Master_Export.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
         }
     </script>
 </body>
