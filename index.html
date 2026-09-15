@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Azad Wattan General Trading Co. - Enterprise System</title>
+    <title>Azad Wattan General Trading Co. - 3D Enterprise System</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- PapaParse for CSV parsing -->
@@ -19,197 +19,227 @@
 
     <style>
         .table-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
-        .table-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
-        .table-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+        .table-scroll::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+        .table-scroll::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.4); border-radius: 4px; }
+        .table-scroll::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.7); }
+        
+        /* 3D Glassmorphism & Depth Effects */
+        .glass-card {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.65);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        }
+        .btn-3d {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 14px 0 rgba(0, 0, 0, 0.4);
+        }
+        .btn-3d:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        }
+        .btn-3d:active {
+            transform: translateY(1px);
+        }
     </style>
 </head>
-<body class="bg-slate-100 font-sans text-slate-800 flex h-screen overflow-hidden">
+<body class="bg-[#070B14] font-sans text-slate-200 flex h-screen overflow-hidden selection:bg-blue-500 selection:text-white">
 
     <!-- AUTHENTICATION OVERLAY / SCREEN -->
-    <div id="authOverlay" class="fixed inset-0 bg-slate-900 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 border border-slate-200">
+    <div id="authOverlay" class="fixed inset-0 bg-[#070B14]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4">
+        <div class="glass-card rounded-2xl max-w-md w-full p-8 border border-slate-700/60 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)]">
             <div class="text-center mb-6">
-                <h1 class="text-xl font-bold tracking-wider text-slate-900 uppercase">AZAD WATTAN GENERAL TRADING CO.</h1>
-                <p class="text-xs text-blue-600 font-medium mt-1">Enterprise Secure Access Portal</p>
+                <div class="inline-block p-3 rounded-xl bg-blue-600/20 border border-blue-500/30 mb-3 shadow-[0_0_20px_rgba(59,130,246,0.3)]">
+                    <svg class="w-8 h-8 text-blue-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                </div>
+                <h1 class="text-lg font-black tracking-wider text-white uppercase">AZAD WATTAN GENERAL TRADING CO.</h1>
+                <p class="text-xs text-blue-400 font-semibold mt-1 tracking-wide">Enterprise 3D Secure Workspace</p>
             </div>
 
             <!-- Tab Switcher for Sign In / Sign Up -->
-            <div class="flex border-b border-slate-200 mb-6 text-xs font-semibold">
-                <button onclick="switchAuthTab('signin')" id="authTabSignin" class="flex-1 pb-2 text-center border-b-2 border-blue-600 text-blue-600">Sign In</button>
-                <button onclick="switchAuthTab('signup')" id="authTabSignup" class="flex-1 pb-2 text-center text-slate-400 hover:text-slate-600">Sign Up (Max 10)</button>
+            <div class="flex border-b border-slate-700/80 mb-6 text-xs font-semibold">
+                <button onclick="switchAuthTab('signin')" id="authTabSignin" class="flex-1 pb-2.5 text-center border-b-2 border-blue-500 text-blue-400 transition">Sign In</button>
+                <button onclick="switchAuthTab('signup')" id="authTabSignup" class="flex-1 pb-2.5 text-center text-slate-400 hover:text-slate-200 transition">Sign Up (Max 10)</button>
             </div>
 
             <!-- Sign In Form -->
             <form id="signinForm" onsubmit="handleSignIn(event)" class="space-y-4 text-xs">
                 <div>
-                    <label class="block font-semibold mb-1 text-slate-600">Username / Email</label>
-                    <input type="text" id="signinUsername" required class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded focus:bg-white focus:outline-none focus:border-blue-500">
+                    <label class="block font-bold mb-1.5 text-slate-300">Username / Email</label>
+                    <input type="text" id="signinUsername" required class="w-full p-3 bg-slate-900/80 border border-slate-700/80 rounded-lg text-white focus:bg-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition">
                 </div>
                 <div>
-                    <label class="block font-semibold mb-1 text-slate-600">Password</label>
-                    <input type="password" id="signinPassword" required class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded focus:bg-white focus:outline-none focus:border-blue-500">
+                    <label class="block font-bold mb-1.5 text-slate-300">Password</label>
+                    <input type="password" id="signinPassword" required class="w-full p-3 bg-slate-900/80 border border-slate-700/80 rounded-lg text-white focus:bg-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition">
                 </div>
-                <div id="signinError" class="text-red-500 text-[11px] hidden"></div>
-                <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition shadow-sm">Sign In to Workspace</button>
+                <div id="signinError" class="text-red-400 text-[11px] font-medium hidden"></div>
+                <button type="submit" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg font-bold transition btn-3d shadow-lg shadow-blue-600/30">Sign In to Workspace</button>
             </form>
 
             <!-- Sign Up Form -->
             <form id="signupForm" onsubmit="handleSignUp(event)" class="space-y-4 text-xs hidden">
                 <div>
-                    <label class="block font-semibold mb-1 text-slate-600">Choose Username</label>
-                    <input type="text" id="signupUsername" required class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded focus:bg-white focus:outline-none focus:border-blue-500">
+                    <label class="block font-bold mb-1.5 text-slate-300">Choose Username</label>
+                    <input type="text" id="signupUsername" required class="w-full p-3 bg-slate-900/80 border border-slate-700/80 rounded-lg text-white focus:bg-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition">
                 </div>
                 <div>
-                    <label class="block font-semibold mb-1 text-slate-600">Password</label>
-                    <input type="password" id="signupPassword" required class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded focus:bg-white focus:outline-none focus:border-blue-500">
+                    <label class="block font-bold mb-1.5 text-slate-300">Password</label>
+                    <input type="password" id="signupPassword" required class="w-full p-3 bg-slate-900/80 border border-slate-700/80 rounded-lg text-white focus:bg-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition">
                 </div>
-                <div class="bg-amber-50 border border-amber-200 p-2.5 rounded text-amber-800 text-[11px]">
+                <div class="bg-amber-500/10 border border-amber-500/30 p-3 rounded-lg text-amber-300 text-[11px] leading-relaxed">
                     ⚠️ New signups require an <strong>Admin Verification Code</strong> before active workspace entry is unlocked. A code will be generated for admin approval.
                 </div>
-                <div id="signupError" class="text-red-500 text-[11px] hidden"></div>
-                <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold transition shadow-sm">Register & Request Verification Code</button>
+                <div id="signupError" class="text-red-400 text-[11px] font-medium hidden"></div>
+                <button type="submit" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg font-bold transition btn-3d shadow-lg shadow-emerald-600/30">Register & Request Code</button>
             </form>
 
             <!-- Verification Code Input Screen -->
             <div id="verificationScreen" class="space-y-4 text-xs hidden">
-                <div class="bg-blue-50 border border-blue-200 p-3 rounded text-blue-900">
+                <div class="bg-blue-500/10 border border-blue-500/30 p-3 rounded-lg text-blue-200">
                     <p class="font-bold mb-1">Registration Pending Admin Verification</p>
-                    <p class="text-[11px]">Your account has been created. Please enter the 6-digit verification code provided by your system administrator.</p>
+                    <p class="text-[11px] text-slate-300">Your account has been created. Please enter the 6-digit verification code provided by your system administrator.</p>
                 </div>
                 <div>
-                    <label class="block font-semibold mb-1 text-slate-600">Enter Admin Verification Code</label>
-                    <input type="text" id="verificationCodeInput" placeholder="e.g. 482910" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded font-bold text-center tracking-widest text-sm">
+                    <label class="block font-bold mb-1.5 text-slate-300">Enter Admin Verification Code</label>
+                    <input type="text" id="verificationCodeInput" placeholder="e.g. 482910" class="w-full p-3 bg-slate-900/80 border border-slate-700/80 rounded-lg font-bold text-center tracking-[0.3em] text-sm text-blue-400 focus:outline-none focus:border-blue-500">
                 </div>
-                <div id="verifyError" class="text-red-500 text-[11px] hidden"></div>
-                <button type="button" onclick="verifyAccountCode()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition shadow-sm">Verify & Enter Workspace</button>
-                <button type="button" onclick="backToSignIn()" class="w-full text-center text-slate-500 hover:underline">Back to Sign In</button>
+                <div id="verifyError" class="text-red-400 text-[11px] font-medium hidden"></div>
+                <button type="button" onclick="verifyAccountCode()" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg font-bold transition btn-3d shadow-lg shadow-blue-600/30">Verify & Enter Workspace</button>
+                <button type="button" onclick="backToSignIn()" class="w-full text-center text-slate-400 hover:text-white transition">Back to Sign In</button>
             </div>
         </div>
     </div>
 
     <!-- Left Sidebar Navigation -->
-    <aside class="w-64 bg-[#0F172A] text-slate-300 flex flex-col flex-shrink-0">
-        <div class="p-5 border-b border-slate-800 flex justify-between items-center">
+    <aside class="w-64 bg-[#0B1120] border-r border-slate-800/80 text-slate-300 flex flex-col flex-shrink-0 shadow-[5px_0_30px_rgba(0,0,0,0.5)] z-20">
+        <div class="p-5 border-b border-slate-800/80 flex justify-between items-center bg-slate-900/40">
             <div>
-                <h1 class="text-lg font-bold tracking-wider text-white uppercase">AZAD WATTAN</h1>
-                <p class="text-[10px] text-blue-400 font-medium mt-1">Enterprise Cloud v16.0</p>
+                <h1 class="text-sm font-black tracking-widest text-white uppercase bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent">AZAD WATTAN</h1>
+                <p class="text-[10px] text-blue-400 font-bold mt-0.5 tracking-wider">Enterprise 3D v16.0</p>
             </div>
-            <button onclick="logoutUser()" title="Sign Out" class="text-slate-400 hover:text-white text-xs font-semibold bg-slate-800 px-2.5 py-1 rounded">Logout</button>
+            <button onclick="logoutUser()" title="Sign Out" class="text-slate-400 hover:text-white text-xs font-bold bg-slate-800/80 hover:bg-slate-700 px-2.5 py-1.5 rounded-lg border border-slate-700 transition">Logout</button>
         </div>
 
         <!-- Logged User Info Badge -->
-        <div class="px-5 py-2.5 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center text-xs">
+        <div class="px-5 py-3 bg-slate-900/80 border-b border-slate-800/80 flex justify-between items-center text-xs">
             <div>
-                <span class="block text-[10px] uppercase font-bold text-slate-500">Logged User</span>
-                <strong id="loggedUserDisplay" class="text-white">Admin</strong>
+                <span class="block text-[9px] uppercase font-black text-slate-500 tracking-wider">Logged User</span>
+                <strong id="loggedUserDisplay" class="text-white font-bold">Admin</strong>
             </div>
             <div>
-                <span class="block text-[10px] uppercase font-bold text-slate-500">Role</span>
+                <span class="block text-[9px] uppercase font-black text-slate-500 tracking-wider">Role</span>
                 <span id="loggedRoleDisplay" class="text-amber-400 font-bold capitalize">admin</span>
             </div>
         </div>
 
-        <nav class="flex-1 py-4 space-y-1 overflow-y-auto" id="sidebar-nav">
-            <button onclick="switchTab('master')" id="nav-master" class="nav-btn w-full text-left flex items-center px-5 py-3 text-sm font-medium bg-slate-800 text-white border-l-4 border-blue-500">
+        <nav class="flex-1 py-4 space-y-1.5 px-3 overflow-y-auto" id="sidebar-nav">
+            <button onclick="switchTab('master')" id="nav-master" class="nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-bold rounded-xl bg-gradient-to-r from-blue-600/30 to-indigo-600/20 text-white border border-blue-500/40 shadow-[0_4px_12px_rgba(59,130,246,0.2)]">
                 Master Sheet
             </button>
-            <button onclick="switchTab('analytics')" id="nav-analytics" class="nav-btn w-full text-left flex items-center px-5 py-3 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+            <button onclick="switchTab('analytics')" id="nav-analytics" class="nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white rounded-xl transition">
                 Analytics & Visuals
             </button>
-            <button onclick="switchTab('tracking')" id="nav-tracking" class="nav-btn w-full text-left flex items-center px-5 py-3 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+            <button onclick="switchTab('tracking')" id="nav-tracking" class="nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white rounded-xl transition">
                 Container Tracking
             </button>
-            <button onclick="switchTab('expenses')" id="nav-expenses" class="nav-btn w-full text-left flex items-center px-5 py-3 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+            <button onclick="switchTab('expenses')" id="nav-expenses" class="nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white rounded-xl transition">
                 Expenses & Invoicing
             </button>
-            <button onclick="switchTab('accounts')" id="nav-accounts" class="nav-btn w-full text-left flex items-center px-5 py-3 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+            <button onclick="switchTab('accounts')" id="nav-accounts" class="nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white rounded-xl transition">
                 Regional Accounts
             </button>
-            <button onclick="switchTab('statements')" id="nav-statements" class="nav-btn w-full text-left flex items-center px-5 py-3 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+            <button onclick="switchTab('statements')" id="nav-statements" class="nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white rounded-xl transition">
                 Customer Statements
             </button>
-            <button onclick="switchTab('members')" id="nav-members" class="nav-btn admin-only hidden w-full text-left flex items-center px-5 py-3 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition border-t border-slate-800">
+            <button onclick="switchTab('members')" id="nav-members" class="nav-btn admin-only hidden w-full text-left flex items-center px-4 py-3 text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white rounded-xl transition border-t border-slate-800/80 mt-2 pt-3">
                 Members Management 🛡️
             </button>
-            <button onclick="switchTab('history')" id="nav-history" class="nav-btn admin-only hidden w-full text-left flex items-center px-5 py-3 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+            <button onclick="switchTab('history')" id="nav-history" class="nav-btn admin-only hidden w-full text-left flex items-center px-4 py-3 text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white rounded-xl transition">
                 Visitor History 📊
             </button>
         </nav>
 
-        <div class="p-4 border-t border-slate-800 text-xs text-slate-500 flex justify-between items-center">
+        <div class="p-4 border-t border-slate-800/80 text-xs text-slate-500 flex justify-between items-center bg-slate-900/30">
             <span>Database: <strong id="storageStatus" class="text-amber-400">Connecting...</strong></span>
         </div>
     </aside>
 
     <!-- Main Workspace Container -->
-    <main class="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-y-auto">
+    <main class="flex-1 flex flex-col min-w-0 bg-gradient-to-br from-[#070B14] via-[#0B1120] to-[#0F172A] overflow-y-auto">
 
         <!-- TAB 1: MASTER SHEET DATABASE -->
         <div id="tab-master" class="tab-content p-8">
             <div class="mb-6 flex justify-between items-center">
                 <div>
-                    <h2 class="text-xl font-bold text-slate-900">Master Sheet Database</h2>
-                    <p class="text-xs text-slate-500 mt-0.5">Displaying <span id="record-count" class="font-semibold text-slate-700">0</span> matching container records</p>
+                    <h2 class="text-xl font-black text-white tracking-wide">Master Sheet Database</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Displaying <span id="record-count" class="font-bold text-blue-400">0</span> matching container records</p>
                 </div>
                 <div class="flex items-center space-x-3">
                     <div class="relative">
-                        <button onclick="toggleColumnMenu()" class="bg-white border border-slate-300 text-slate-700 text-xs font-semibold px-3 py-2 rounded-md shadow-sm hover:bg-slate-50 flex items-center space-x-1">
+                        <button onclick="toggleColumnMenu()" class="glass-panel text-slate-200 text-xs font-bold px-3.5 py-2 rounded-xl hover:bg-slate-800 transition flex items-center space-x-1.5 shadow-md">
                             <span>Columns ⚙️</span>
                         </button>
-                        <div id="columnMenu" class="hidden absolute right-0 mt-2 w-56 bg-white border border-slate-200 shadow-xl rounded-md p-3 z-30 max-h-64 overflow-y-auto">
-                            <div class="flex justify-between items-center border-b pb-1 mb-2">
-                                <span class="text-xs font-bold text-slate-700">Toggle Columns</span>
-                                <button onclick="selectAllColumns(true)" class="text-[10px] text-blue-600 font-semibold">Select All</button>
+                        <div id="columnMenu" class="hidden absolute right-0 mt-2 w-56 glass-card shadow-2xl rounded-xl p-3 z-30 max-h-64 overflow-y-auto border border-slate-700">
+                            <div class="flex justify-between items-center border-b border-slate-700 pb-1.5 mb-2">
+                                <span class="text-xs font-bold text-slate-200">Toggle Columns</span>
+                                <button onclick="selectAllColumns(true)" class="text-[10px] text-blue-400 font-bold hover:underline">Select All</button>
                             </div>
-                            <div id="columnCheckboxes" class="space-y-1.5 text-xs text-slate-600"></div>
+                            <div id="columnCheckboxes" class="space-y-1.5 text-xs text-slate-300"></div>
                         </div>
                     </div>
 
                     <input type="file" id="csvFileInput" accept=".csv" class="hidden" onchange="importCSV(event)">
-                    <button onclick="document.getElementById('csvFileInput').click()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold px-4 py-2 rounded-md transition">Import CSV</button>
-                    <button onclick="exportCSV()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold px-4 py-2 rounded-md transition">Export CSV</button>
-                    <button id="addNewBtn" onclick="openModalForAdd()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-md transition shadow-sm">+ Add Container</button>
+                    <button onclick="document.getElementById('csvFileInput').click()" class="glass-panel hover:bg-slate-800 text-slate-200 text-xs font-bold px-4 py-2 rounded-xl transition shadow-md">Import CSV</button>
+                    <button onclick="exportCSV()" class="glass-panel hover:bg-slate-800 text-slate-200 text-xs font-bold px-4 py-2 rounded-xl transition shadow-md">Export CSV</button>
+                    <button id="addNewBtn" onclick="openModalForAdd()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition btn-3d shadow-lg shadow-blue-600/30">+ Add Container</button>
                 </div>
             </div>
 
             <!-- FILTER PANEL -->
-            <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm mb-5 space-y-3">
-                <div class="flex items-center justify-between pb-2 border-b border-slate-100">
-                    <h3 class="font-bold text-xs uppercase tracking-wider text-slate-700">Multi-Function Filter Panel</h3>
-                    <button onclick="resetFilters()" class="text-xs text-blue-600 hover:text-blue-800 font-semibold underline">Reset All Filters</button>
+            <div class="glass-card p-4 rounded-2xl shadow-xl mb-6 space-y-3 border border-slate-800/80">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <h3 class="font-extrabold text-xs uppercase tracking-wider text-slate-300">Multi-Function Filter Panel</h3>
+                    <button onclick="resetFilters()" class="text-xs text-blue-400 hover:text-blue-300 font-bold underline">Reset All Filters</button>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3">
                     <div class="xl:col-span-2">
-                        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Search Keyword</label>
-                        <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Container / BL / Customer..." class="w-full p-2 text-xs bg-slate-50 border border-slate-300 rounded focus:bg-white focus:outline-none">
+                        <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">Search Keyword</label>
+                        <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Container / BL / Customer..." class="w-full p-2.5 text-xs bg-slate-900/80 border border-slate-700/80 rounded-xl text-white focus:bg-slate-900 focus:outline-none focus:border-blue-500">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Customer</label>
-                        <select id="filterCustomer" onchange="applyFilters()" class="w-full p-2 text-xs bg-slate-50 border border-slate-300 rounded focus:bg-white focus:outline-none">
+                        <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">Customer</label>
+                        <select id="filterCustomer" onchange="applyFilters()" class="w-full p-2.5 text-xs bg-slate-900/80 border border-slate-700/80 rounded-xl text-white focus:bg-slate-900 focus:outline-none focus:border-blue-500">
                             <option value="">All Customers</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Shipping Line</label>
-                        <select id="filterLine" onchange="applyFilters()" class="w-full p-2 text-xs bg-slate-50 border border-slate-300 rounded focus:bg-white focus:outline-none">
+                        <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">Shipping Line</label>
+                        <select id="filterLine" onchange="applyFilters()" class="w-full p-2.5 text-xs bg-slate-900/80 border border-slate-700/80 rounded-xl text-white focus:bg-slate-900 focus:outline-none focus:border-blue-500">
                             <option value="">All Lines</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">SOC / COC</label>
-                        <select id="filterSocCoc" onchange="applyFilters()" class="w-full p-2 text-xs bg-slate-50 border border-slate-300 rounded focus:bg-white focus:outline-none">
+                        <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">SOC / COC</label>
+                        <select id="filterSocCoc" onchange="applyFilters()" class="w-full p-2.5 text-xs bg-slate-900/80 border border-slate-700/80 rounded-xl text-white focus:bg-slate-900 focus:outline-none focus:border-blue-500">
                             <option value="">All Types</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Final Destination</label>
-                        <select id="filterDestination" onchange="applyFilters()" class="w-full p-2 text-xs bg-slate-50 border border-slate-300 rounded focus:bg-white focus:outline-none">
+                        <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">Final Destination</label>
+                        <select id="filterDestination" onchange="applyFilters()" class="w-full p-2.5 text-xs bg-slate-900/80 border border-slate-700/80 rounded-xl text-white focus:bg-slate-900 focus:outline-none focus:border-blue-500">
                             <option value="">All Destinations</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Transit Status</label>
-                        <select id="filterStatus" onchange="applyFilters()" class="w-full p-2 text-xs bg-slate-50 border border-slate-300 rounded focus:bg-white focus:outline-none">
+                        <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">Transit Status</label>
+                        <select id="filterStatus" onchange="applyFilters()" class="w-full p-2.5 text-xs bg-slate-900/80 border border-slate-700/80 rounded-xl text-white focus:bg-slate-900 focus:outline-none focus:border-blue-500">
                             <option value="">All Statuses</option>
                             <option value="dxb">Arrived DXB</option>
                             <option value="iran">In Transit (Iran)</option>
@@ -218,26 +248,26 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Filter Date From</label>
-                        <input type="date" id="filterDateFrom" onchange="applyFilters()" class="w-full p-1.5 text-xs bg-slate-50 border border-slate-300 rounded focus:bg-white focus:outline-none">
+                        <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">Filter Date From</label>
+                        <input type="date" id="filterDateFrom" onchange="applyFilters()" class="w-full p-2.5 text-xs bg-slate-900/80 border border-slate-700/80 rounded-xl text-white focus:bg-slate-900 focus:outline-none focus:border-blue-500">
                     </div>
                 </div>
             </div>
 
             <!-- Master Data Table -->
-            <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+            <div class="glass-card rounded-2xl shadow-2xl overflow-hidden border border-slate-800">
                 <div class="overflow-x-auto table-scroll">
-                    <table class="w-full text-left text-xs text-slate-700 whitespace-nowrap">
-                        <thead class="bg-slate-50 border-b border-slate-200 font-semibold text-slate-600 select-none" id="tableHeader"></thead>
-                        <tbody id="tableBody" class="divide-y divide-slate-100"></tbody>
+                    <table class="w-full text-left text-xs text-slate-300 whitespace-nowrap">
+                        <thead class="bg-slate-900/90 border-b border-slate-800 font-bold text-slate-300 select-none" id="tableHeader"></thead>
+                        <tbody id="tableBody" class="divide-y divide-slate-800/60"></tbody>
                     </table>
                 </div>
 
                 <!-- Pagination Footer -->
-                <div class="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
+                <div class="p-3.5 bg-slate-900/80 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
                     <div class="flex items-center space-x-2">
                         <span>Rows per page:</span>
-                        <select id="pageSizeSelect" onchange="changePageSize()" class="bg-white border border-slate-300 rounded p-1">
+                        <select id="pageSizeSelect" onchange="changePageSize()" class="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white">
                             <option value="15">15</option>
                             <option value="25">25</option>
                             <option value="50">50</option>
@@ -245,10 +275,10 @@
                         </select>
                     </div>
                     <div class="flex items-center space-x-4">
-                        <span id="pageInfo">Page 1 of 1</span>
-                        <div class="space-x-1">
-                            <button onclick="prevPage()" class="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-100 font-semibold disabled:opacity-50" id="btnPrev">Previous</button>
-                            <button onclick="nextPage()" class="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-100 font-semibold disabled:opacity-50" id="btnNext">Next</button>
+                        <span id="pageInfo" class="font-bold text-slate-300">Page 1 of 1</span>
+                        <div class="space-x-1.5">
+                            <button onclick="prevPage()" class="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 rounded-lg font-bold disabled:opacity-40 transition text-white" id="btnPrev">Previous</button>
+                            <button onclick="nextPage()" class="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 rounded-lg font-bold disabled:opacity-40 transition text-white" id="btnNext">Next</button>
                         </div>
                     </div>
                 </div>
@@ -258,26 +288,26 @@
         <!-- TAB 2: ANALYTICS DASHBOARD -->
         <div id="tab-analytics" class="tab-content p-8 hidden">
             <div class="mb-6">
-                <h2 class="text-xl font-bold text-slate-900">Visual Analytics & Performance Dashboard</h2>
-                <p class="text-xs text-slate-500 mt-0.5">Real-time operational distribution, customer tonnage metrics, and destination volume breakdown.</p>
+                <h2 class="text-xl font-black text-white tracking-wide">Visual Analytics & Performance Dashboard</h2>
+                <p class="text-xs text-slate-400 mt-0.5">Real-time operational distribution, customer tonnage metrics, and destination volume breakdown.</p>
             </div>
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-                    <h3 class="text-xs font-bold uppercase text-slate-600 mb-4">Shipment Lifecycle Status</h3>
+                <div class="glass-card p-6 rounded-2xl shadow-xl border border-slate-800">
+                    <h3 class="text-xs font-black uppercase text-slate-300 mb-4 tracking-wider">Shipment Lifecycle Status</h3>
                     <div class="h-60 flex justify-center"><canvas id="chartStatus"></canvas></div>
                 </div>
-                <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm lg:col-span-2">
-                    <h3 class="text-xs font-bold uppercase text-slate-600 mb-4">Top 5 Customers by Total Cargo Volume (BL Weight - KG)</h3>
+                <div class="glass-card p-6 rounded-2xl shadow-xl border border-slate-800 lg:col-span-2">
+                    <h3 class="text-xs font-black uppercase text-slate-300 mb-4 tracking-wider">Top 5 Customers by Total Cargo Volume (BL Weight - KG)</h3>
                     <div class="h-60"><canvas id="chartCustomerTonnage"></canvas></div>
                 </div>
             </div>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-                    <h3 class="text-xs font-bold uppercase text-slate-600 mb-4">Shipment Volume by Final Destination</h3>
+                <div class="glass-card p-6 rounded-2xl shadow-xl border border-slate-800">
+                    <h3 class="text-xs font-black uppercase text-slate-300 mb-4 tracking-wider">Shipment Volume by Final Destination</h3>
                     <div class="h-60"><canvas id="chartDestination"></canvas></div>
                 </div>
-                <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-                    <h3 class="text-xs font-bold uppercase text-slate-600 mb-4">Container Equipment Type Share</h3>
+                <div class="glass-card p-6 rounded-2xl shadow-xl border border-slate-800">
+                    <h3 class="text-xs font-black uppercase text-slate-300 mb-4 tracking-wider">Container Equipment Type Share</h3>
                     <div class="h-60 flex justify-center"><canvas id="chartContainerType"></canvas></div>
                 </div>
             </div>
@@ -287,66 +317,66 @@
         <div id="tab-tracking" class="tab-content p-8 hidden">
             <div class="mb-6 flex justify-between items-center">
                 <div>
-                    <h2 class="text-xl font-bold text-slate-900">Container Lifecycle Tracking</h2>
-                    <p class="text-xs text-slate-500 mt-0.5">Track shipment milestones across Dubai, Iran, and Afghanistan borders.</p>
+                    <h2 class="text-xl font-black text-white tracking-wide">Container Lifecycle Tracking</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Track shipment milestones across Dubai, Iran, and Afghanistan borders.</p>
                 </div>
                 <div>
-                    <input type="text" id="trackingSearch" onkeyup="filterTracking()" placeholder="Filter container or BL..." class="w-64 pl-3 pr-4 py-1.5 text-xs bg-white border border-slate-300 rounded-md">
+                    <input type="text" id="trackingSearch" onkeyup="filterTracking()" placeholder="Filter container or BL..." class="w-64 pl-3.5 pr-4 py-2 text-xs bg-slate-900/80 border border-slate-700/80 rounded-xl text-white focus:outline-none focus:border-blue-500">
                 </div>
             </div>
 
             <!-- PRIMARY REGION TABS -->
-            <div class="flex border-b border-slate-300 mb-4 space-x-2 text-xs font-bold flex-wrap">
-                <button onclick="switchTrackingHub('dubai')" id="hubTab-dubai" class="px-4 py-2 border-b-2 border-blue-600 text-blue-600 bg-white rounded-t">Dubai Hub</button>
-                <button onclick="switchTrackingHub('iran')" id="hubTab-iran" class="px-4 py-2 text-slate-500 hover:text-slate-800 rounded-t">Iran Hub</button>
-                <button onclick="switchTrackingHub('afghanistan')" id="hubTab-afghanistan" class="px-4 py-2 text-slate-500 hover:text-slate-800 rounded-t">Afghanistan Hub</button>
-                <button onclick="switchTrackingHub('cleared')" id="hubTab-cleared" class="px-4 py-2 text-slate-500 hover:text-slate-800 rounded-t">Cleared Container</button>
-                <button onclick="switchTrackingHub('ignored')" id="hubTab-ignored" class="px-4 py-2 text-slate-500 hover:text-slate-800 rounded-t">Ignored Containers</button>
+            <div class="flex border-b border-slate-800 mb-4 space-x-2 text-xs font-bold flex-wrap">
+                <button onclick="switchTrackingHub('dubai')" id="hubTab-dubai" class="px-4 py-2.5 border-b-2 border-blue-500 text-blue-400 bg-slate-900/60 rounded-t-xl transition font-black">Dubai Hub</button>
+                <button onclick="switchTrackingHub('iran')" id="hubTab-iran" class="px-4 py-2.5 text-slate-400 hover:text-white rounded-t-xl transition font-bold">Iran Hub</button>
+                <button onclick="switchTrackingHub('afghanistan')" id="hubTab-afghanistan" class="px-4 py-2.5 text-slate-400 hover:text-white rounded-t-xl transition font-bold">Afghanistan Hub</button>
+                <button onclick="switchTrackingHub('cleared')" id="hubTab-cleared" class="px-4 py-2.5 text-slate-400 hover:text-white rounded-t-xl transition font-bold">Cleared Container</button>
+                <button onclick="switchTrackingHub('ignored')" id="hubTab-ignored" class="px-4 py-2.5 text-slate-400 hover:text-white rounded-t-xl transition font-bold">Ignored Containers</button>
             </div>
 
             <!-- SUB-TABS CONTAINER & DYNAMIC AGENT ADDITION -->
-            <div class="flex items-center justify-between bg-white px-4 py-2 rounded-t-lg border-x border-t border-slate-200">
-                <div id="trackingSubTabs" class="flex space-x-2 overflow-x-auto text-xs font-semibold py-1"></div>
-                <button onclick="promptAddAgent()" title="Add New Agent" class="ml-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded text-xs flex items-center space-x-1 flex-shrink-0">
+            <div class="flex items-center justify-between glass-card px-4 py-2.5 rounded-t-2xl border-b border-slate-800">
+                <div id="trackingSubTabs" class="flex space-x-2 overflow-x-auto text-xs font-bold py-1"></div>
+                <button onclick="promptAddAgent()" title="Add New Agent" class="ml-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center space-x-1 flex-shrink-0 btn-3d shadow-md">
                     <span>+ Add Agent</span>
                 </button>
             </div>
 
             <!-- METRICS SUMMARY CARDS -->
-            <div class="grid grid-cols-4 gap-4 mb-4">
-                <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                    <p class="text-xs text-slate-500 font-semibold uppercase">Total Active Pipeline</p>
-                    <p id="track-total" class="text-2xl font-bold text-slate-800 mt-1">0</p>
+            <div class="grid grid-cols-4 gap-4 my-4">
+                <div class="glass-card p-5 rounded-2xl shadow-xl border border-slate-800">
+                    <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Total Active Pipeline</p>
+                    <p id="track-total" class="text-2xl font-black text-white mt-1">0</p>
                 </div>
-                <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                    <p class="text-xs text-slate-500 font-semibold uppercase">Arrived Jebel Ali (DXB)</p>
-                    <p id="track-dxb" class="text-2xl font-bold text-blue-600 mt-1">0</p>
+                <div class="glass-card p-5 rounded-2xl shadow-xl border border-slate-800">
+                    <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Arrived Jebel Ali (DXB)</p>
+                    <p id="track-dxb" class="text-2xl font-black text-blue-400 mt-1">0</p>
                 </div>
-                <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                    <p class="text-xs text-slate-500 font-semibold uppercase">In Transit (Iran)</p>
-                    <p id="track-iran" class="text-2xl font-bold text-amber-600 mt-1">0</p>
+                <div class="glass-card p-5 rounded-2xl shadow-xl border border-slate-800">
+                    <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">In Transit (Iran)</p>
+                    <p id="track-iran" class="text-2xl font-black text-amber-400 mt-1">0</p>
                 </div>
-                <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                    <p class="text-xs text-slate-500 font-semibold uppercase">Border Exit Completed</p>
-                    <p id="track-exit" class="text-2xl font-bold text-emerald-600 mt-1">0</p>
+                <div class="glass-card p-5 rounded-2xl shadow-xl border border-slate-800">
+                    <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Border Exit Completed</p>
+                    <p id="track-exit" class="text-2xl font-black text-emerald-400 mt-1">0</p>
                 </div>
             </div>
 
             <!-- TRACKING TABLE CONTAINER WITH STATUS COLUMN -->
-            <div class="bg-white rounded-b-lg border border-slate-200 shadow-sm overflow-hidden">
+            <div class="glass-card rounded-b-2xl shadow-2xl overflow-hidden border border-slate-800">
                 <div class="overflow-x-auto table-scroll">
-                    <table class="w-full text-left text-xs text-slate-700 whitespace-nowrap">
-                        <thead class="bg-slate-50 border-b border-slate-200 font-semibold text-slate-600">
+                    <table class="w-full text-left text-xs text-slate-300 whitespace-nowrap">
+                        <thead class="bg-slate-900/90 border-b border-slate-800 font-bold text-slate-300">
                             <tr>
-                                <th class="p-3">Container No</th>
-                                <th class="p-3">BL Number</th>
-                                <th class="p-3">Customer</th>
-                                <th class="p-3">Active Hub / Agent</th>
-                                <th class="p-3">Milestone Date (dd.mm.yy)</th>
-                                <th class="p-3">Status Column (Editable)</th>
+                                <th class="p-3.5">Container No</th>
+                                <th class="p-3.5">BL Number</th>
+                                <th class="p-3.5">Customer</th>
+                                <th class="p-3.5">Active Hub / Agent</th>
+                                <th class="p-3.5">Milestone Date (dd.mm.yy)</th>
+                                <th class="p-3.5">Status Column (Editable)</th>
                             </tr>
                         </thead>
-                        <tbody id="trackingTableBody" class="divide-y divide-slate-100"></tbody>
+                        <tbody id="trackingTableBody" class="divide-y divide-slate-800/60"></tbody>
                     </table>
                 </div>
             </div>
@@ -356,39 +386,39 @@
         <div id="tab-expenses" class="tab-content p-8 hidden">
             <div class="mb-6 flex justify-between items-center">
                 <div>
-                    <h2 class="text-xl font-bold text-slate-900">Expenses & Freight Invoicing</h2>
-                    <p class="text-xs text-slate-500 mt-0.5">Tonnage freight calculations, clearance fees, and invoice statuses.</p>
+                    <h2 class="text-xl font-black text-white tracking-wide">Expenses & Freight Invoicing</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Tonnage freight calculations, clearance fees, and invoice statuses.</p>
                 </div>
             </div>
-            <div class="grid grid-cols-3 gap-4 mb-6">
-                <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                    <p class="text-xs text-slate-500 font-semibold uppercase">Total Gross Tonnage (BL)</p>
-                    <p id="exp-total-tonnage" class="text-2xl font-bold text-slate-800 mt-1">0 MT</p>
+            <div class="grid grid-cols-3 gap-6 mb-6">
+                <div class="glass-card p-5 rounded-2xl shadow-xl border border-slate-800">
+                    <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Total Gross Tonnage (BL)</p>
+                    <p id="exp-total-tonnage" class="text-2xl font-black text-white mt-1">0 MT</p>
                 </div>
-                <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                    <p class="text-xs text-slate-500 font-semibold uppercase">Estimated Freight Revenue</p>
-                    <p id="exp-est-revenue" class="text-2xl font-bold text-emerald-600 mt-1">$0</p>
+                <div class="glass-card p-5 rounded-2xl shadow-xl border border-slate-800">
+                    <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Estimated Freight Revenue</p>
+                    <p id="exp-est-revenue" class="text-2xl font-black text-emerald-400 mt-1">$0</p>
                 </div>
-                <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                    <p class="text-xs text-slate-500 font-semibold uppercase">Operational Expenses</p>
-                    <p id="exp-est-expenses" class="text-2xl font-bold text-amber-600 mt-1">$0</p>
+                <div class="glass-card p-5 rounded-2xl shadow-xl border border-slate-800">
+                    <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Operational Expenses</p>
+                    <p id="exp-est-expenses" class="text-2xl font-black text-amber-400 mt-1">$0</p>
                 </div>
             </div>
-            <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-x-auto table-scroll">
-                <table class="w-full text-left text-xs text-slate-700 whitespace-nowrap">
-                    <thead class="bg-slate-50 border-b border-slate-200 font-semibold text-slate-600">
+            <div class="glass-card rounded-2xl shadow-2xl overflow-x-auto table-scroll border border-slate-800">
+                <table class="w-full text-left text-xs text-slate-300 whitespace-nowrap">
+                    <thead class="bg-slate-900/90 border-b border-slate-800 font-bold text-slate-300">
                         <tr>
-                            <th class="p-3">Container No</th>
-                            <th class="p-3">Customer</th>
-                            <th class="p-3">BL Weight (kg)</th>
-                            <th class="p-3">Iran Weight (kg)</th>
-                            <th class="p-3">Estimated Freight Fee</th>
-                            <th class="p-3">Transit & Clearance Cost</th>
-                            <th class="p-3">Net Invoiced</th>
-                            <th class="p-3">Payment Status</th>
+                            <th class="p-3.5">Container No</th>
+                            <th class="p-3.5">Customer</th>
+                            <th class="p-3.5">BL Weight (kg)</th>
+                            <th class="p-3.5">Iran Weight (kg)</th>
+                            <th class="p-3.5">Estimated Freight Fee</th>
+                            <th class="p-3.5">Transit & Clearance Cost</th>
+                            <th class="p-3.5">Net Invoiced</th>
+                            <th class="p-3.5">Payment Status</th>
                         </tr>
                     </thead>
-                    <tbody id="expensesTableBody" class="divide-y divide-slate-100"></tbody>
+                    <tbody id="expensesTableBody" class="divide-y divide-slate-800/60"></tbody>
                 </table>
             </div>
         </div>
@@ -396,48 +426,48 @@
         <!-- TAB 5: REGIONAL ACCOUNTS -->
         <div id="tab-accounts" class="tab-content p-8 hidden">
             <div class="mb-6">
-                <h2 class="text-xl font-bold text-slate-900">Regional Operations Accounts</h2>
-                <p class="text-xs text-slate-500 mt-0.5">Performance and container volumes segmented by operating hub.</p>
+                <h2 class="text-xl font-black text-white tracking-wide">Regional Operations Accounts</h2>
+                <p class="text-xs text-slate-400 mt-0.5">Performance and container volumes segmented by operating hub.</p>
             </div>
             <div class="grid grid-cols-2 gap-6">
-                <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-4">
-                    <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-                        <h3 class="font-bold text-slate-900 text-sm">Dubai / Jebel Ali Hub (UAE)</h3>
-                        <span class="text-xs font-semibold px-2 py-0.5 bg-blue-50 text-blue-600 rounded">Port Clearance</span>
+                <div class="glass-card p-6 rounded-2xl shadow-xl border border-slate-800 space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <h3 class="font-black text-white text-sm">Dubai / Jebel Ali Hub (UAE)</h3>
+                        <span class="text-[11px] font-bold px-2.5 py-1 bg-blue-500/20 text-blue-400 rounded-lg border border-blue-500/30">Port Clearance</span>
                     </div>
                     <div class="grid grid-cols-2 gap-4 text-xs">
-                        <div><p class="text-slate-500">Containers Received</p><p id="acc-dxb-count" class="text-lg font-bold text-slate-800">0</p></div>
-                        <div><p class="text-slate-500">Key Handling Agent</p><p id="acc-dxb-agent" class="text-sm font-semibold text-slate-700">Interglobe</p></div>
+                        <div><p class="text-slate-400 font-medium">Containers Received</p><p id="acc-dxb-count" class="text-lg font-black text-white mt-0.5">0</p></div>
+                        <div><p class="text-slate-400 font-medium">Key Handling Agent</p><p id="acc-dxb-agent" class="text-sm font-bold text-slate-200 mt-0.5">Interglobe</p></div>
                     </div>
                 </div>
-                <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-4">
-                    <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-                        <h3 class="font-bold text-slate-900 text-sm">Bandar Abbas & Iran Transit</h3>
-                        <span class="text-xs font-semibold px-2 py-0.5 bg-amber-50 text-amber-600 rounded">Weighbridge & Transit</span>
+                <div class="glass-card p-6 rounded-2xl shadow-xl border border-slate-800 space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <h3 class="font-black text-white text-sm">Bandar Abbas & Iran Transit</h3>
+                        <span class="text-[11px] font-bold px-2.5 py-1 bg-amber-500/20 text-amber-400 rounded-lg border border-amber-500/30">Weighbridge & Transit</span>
                     </div>
                     <div class="grid grid-cols-2 gap-4 text-xs">
-                        <div><p class="text-slate-500">Transit Logged</p><p id="acc-iran-count" class="text-lg font-bold text-slate-800">0</p></div>
-                        <div><p class="text-slate-500">Primary Consignee</p><p id="acc-iran-consignee" class="text-sm font-semibold text-slate-700">Artiman</p></div>
+                        <div><p class="text-slate-400 font-medium">Transit Logged</p><p id="acc-iran-count" class="text-lg font-black text-white mt-0.5">0</p></div>
+                        <div><p class="text-slate-400 font-medium">Primary Consignee</p><p id="acc-iran-consignee" class="text-sm font-bold text-slate-200 mt-0.5">Artiman</p></div>
                     </div>
                 </div>
-                <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-4">
-                    <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-                        <h3 class="font-bold text-slate-900 text-sm">Mahirud Border Hub</h3>
-                        <span class="text-xs font-semibold px-2 py-0.5 bg-purple-50 text-purple-600 rounded">Border Terminal</span>
+                <div class="glass-card p-6 rounded-2xl shadow-xl border border-slate-800 space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <h3 class="font-black text-white text-sm">Mahirud Border Hub</h3>
+                        <span class="text-[11px] font-bold px-2.5 py-1 bg-purple-500/20 text-purple-400 rounded-lg border border-purple-500/30">Border Terminal</span>
                     </div>
                     <div class="grid grid-cols-2 gap-4 text-xs">
-                        <div><p class="text-slate-500">Shipments Routed</p><p id="acc-mahirud-count" class="text-lg font-bold text-slate-800">0</p></div>
-                        <div><p class="text-slate-500">Border Status</p><p class="text-sm font-semibold text-emerald-600">Active</p></div>
+                        <div><p class="text-slate-400 font-medium">Shipments Routed</p><p id="acc-mahirud-count" class="text-lg font-black text-white mt-0.5">0</p></div>
+                        <div><p class="text-slate-400 font-medium">Border Status</p><p class="text-sm font-bold text-emerald-400 mt-0.5">Active</p></div>
                     </div>
                 </div>
-                <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-4">
-                    <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-                        <h3 class="font-bold text-slate-900 text-sm">Nimroz Border Hub</h3>
-                        <span class="text-xs font-semibold px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded">Afghanistan Dispatch</span>
+                <div class="glass-card p-6 rounded-2xl shadow-xl border border-slate-800 space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <h3 class="font-black text-white text-sm">Nimroz Border Hub</h3>
+                        <span class="text-[11px] font-bold px-2.5 py-1 bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/30">Afghanistan Dispatch</span>
                     </div>
                     <div class="grid grid-cols-2 gap-4 text-xs">
-                        <div><p class="text-slate-500">Shipments Routed</p><p id="acc-nimroz-count" class="text-lg font-bold text-slate-800">0</p></div>
-                        <div><p class="text-slate-500">Border Agent</p><p id="acc-afgh-agent" class="text-sm font-semibold text-slate-700">Gul Badin</p></div>
+                        <div><p class="text-slate-400 font-medium">Shipments Routed</p><p id="acc-nimroz-count" class="text-lg font-black text-white mt-0.5">0</p></div>
+                        <div><p class="text-slate-400 font-medium">Border Agent</p><p id="acc-afgh-agent" class="text-sm font-bold text-slate-200 mt-0.5">Gul Badin</p></div>
                     </div>
                 </div>
             </div>
@@ -447,51 +477,51 @@
         <div id="tab-statements" class="tab-content p-8 hidden">
             <div class="mb-6 flex justify-between items-center">
                 <div>
-                    <h2 class="text-xl font-bold text-slate-900">Customer Account Statements</h2>
-                    <p class="text-xs text-slate-500 mt-0.5">Generate client cargo manifests and financial summaries.</p>
+                    <h2 class="text-xl font-black text-white tracking-wide">Customer Account Statements</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Generate client cargo manifests and financial summaries.</p>
                 </div>
                 <div class="flex items-center space-x-3">
-                    <select id="customerSelect" onchange="renderCustomerStatement()" class="p-2 bg-white border border-slate-300 rounded text-xs font-semibold text-slate-700">
+                    <select id="customerSelect" onchange="renderCustomerStatement()" class="p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-white">
                         <option value="">-- Select Customer --</option>
                     </select>
-                    <button onclick="downloadPDFStatement()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded transition shadow-sm">Export Statement as PDF 📄</button>
-                    <button onclick="window.print()" class="bg-slate-800 text-white text-xs font-semibold px-4 py-2 rounded">Print</button>
+                    <button onclick="downloadPDFStatement()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition btn-3d shadow-lg shadow-blue-600/30">Export Statement as PDF 📄</button>
+                    <button onclick="window.print()" class="glass-panel hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition">Print</button>
                 </div>
             </div>
 
-            <div id="statementCard" class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-6">
-                <div class="flex justify-between items-start border-b border-slate-200 pb-4">
+            <div id="statementCard" class="bg-white text-slate-900 p-8 rounded-2xl shadow-2xl space-y-6">
+                <div class="flex justify-between items-start border-b border-slate-200 pb-5">
                     <div>
-                        <h3 class="text-lg font-bold text-slate-900" id="stmtCustomerName">Select a Customer</h3>
-                        <p class="text-xs text-slate-500">Azad Wattan General Trading Co. Operational Statement</p>
+                        <h3 class="text-xl font-black text-slate-900" id="stmtCustomerName">Select a Customer</h3>
+                        <p class="text-xs text-slate-500 font-medium mt-0.5">Azad Wattan General Trading Co. Operational Statement</p>
                     </div>
                     <div class="text-right text-xs text-slate-500">
-                        <p>Date Generated: <span id="stmtDate" class="font-semibold text-slate-700"></span></p>
+                        <p>Date Generated: <span id="stmtDate" class="font-bold text-slate-700"></span></p>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-3 gap-4 bg-slate-50 p-4 rounded border border-slate-200">
-                    <div><p class="text-xs text-slate-500">Total Containers</p><p id="stmtCount" class="text-xl font-bold text-slate-800">0</p></div>
-                    <div><p class="text-xs text-slate-500">Total BL Weight</p><p id="stmtBLWeight" class="text-xl font-bold text-blue-600">0 kg</p></div>
-                    <div><p class="text-xs text-slate-500">Total Iran Weight</p><p id="stmtIranWeight" class="text-xl font-bold text-amber-600">0 kg</p></div>
+                <div class="grid grid-cols-3 gap-4 bg-slate-100 p-5 rounded-xl border border-slate-200">
+                    <div><p class="text-xs text-slate-500 font-bold uppercase">Total Containers</p><p id="stmtCount" class="text-2xl font-black text-slate-900 mt-1">0</p></div>
+                    <div><p class="text-xs text-slate-500 font-bold uppercase">Total BL Weight</p><p id="stmtBLWeight" class="text-2xl font-black text-blue-600 mt-1">0 kg</p></div>
+                    <div><p class="text-xs text-slate-500 font-bold uppercase">Total Iran Weight</p><p id="stmtIranWeight" class="text-2xl font-black text-amber-600 mt-1">0 kg</p></div>
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs text-slate-700 whitespace-nowrap">
-                        <thead class="bg-slate-100 border-b border-slate-200 font-semibold text-slate-600">
+                    <table class="w-full text-left text-xs text-slate-800 whitespace-nowrap">
+                        <thead class="bg-slate-100 border-b border-slate-300 font-bold text-slate-700">
                             <tr>
-                                <th class="p-2">S. No</th>
-                                <th class="p-2">Container No</th>
-                                <th class="p-2">BL Number</th>
-                                <th class="p-2">Item Description</th>
-                                <th class="p-2">BL Wt (kg)</th>
-                                <th class="p-2">Iran Wt (kg)</th>
-                                <th class="p-2">Destination</th>
-                                <th class="p-2">Exit Date</th>
+                                <th class="p-3">S. No</th>
+                                <th class="p-3">Container No</th>
+                                <th class="p-3">BL Number</th>
+                                <th class="p-3">Item Description</th>
+                                <th class="p-3">BL Wt (kg)</th>
+                                <th class="p-3">Iran Wt (kg)</th>
+                                <th class="p-3">Destination</th>
+                                <th class="p-3">Exit Date</th>
                             </tr>
                         </thead>
-                        <tbody id="stmtTableBody" class="divide-y divide-slate-100">
-                            <tr><td colspan="8" class="p-4 text-center text-slate-400">Select a customer above to render detailed statement.</td></tr>
+                        <tbody id="stmtTableBody" class="divide-y divide-slate-200">
+                            <tr><td colspan="8" class="p-6 text-center text-slate-400">Select a customer above to render detailed statement.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -502,25 +532,25 @@
         <div id="tab-members" class="tab-content p-8 hidden">
             <div class="mb-6 flex justify-between items-center">
                 <div>
-                    <h2 class="text-xl font-bold text-slate-900">Members Management & Verification Codes</h2>
-                    <p class="text-xs text-slate-500 mt-0.5">Manage software users, verify pending accounts, and view generated verification codes.</p>
+                    <h2 class="text-xl font-black text-white tracking-wide">Members Management & Verification Codes</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Manage software users, verify pending accounts, and view generated verification codes.</p>
                 </div>
                 <div>
-                    <span id="memberCountBadge" class="text-xs font-bold px-3 py-1 bg-slate-200 rounded-full text-slate-700">0 / 10 Members</span>
+                    <span id="memberCountBadge" class="text-xs font-black px-3.5 py-1.5 bg-blue-500/20 text-blue-400 rounded-xl border border-blue-500/30">0 / 10 Members</span>
                 </div>
             </div>
-            <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-                <table class="w-full text-left text-xs text-slate-700 whitespace-nowrap">
-                    <thead class="bg-slate-50 border-b border-slate-200 font-semibold text-slate-600">
+            <div class="glass-card rounded-2xl shadow-2xl overflow-hidden border border-slate-800">
+                <table class="w-full text-left text-xs text-slate-300 whitespace-nowrap">
+                    <thead class="bg-slate-900/90 border-b border-slate-800 font-bold text-slate-300">
                         <tr>
-                            <th class="p-3">Username</th>
-                            <th class="p-3">Verification Code</th>
-                            <th class="p-3">Status</th>
-                            <th class="p-3">Current Role</th>
-                            <th class="p-3">Actions (Approve / Role Change / Remove)</th>
+                            <th class="p-3.5">Username</th>
+                            <th class="p-3.5">Verification Code</th>
+                            <th class="p-3.5">Status</th>
+                            <th class="p-3.5">Current Role</th>
+                            <th class="p-3.5">Actions (Approve / Role Change / Remove)</th>
                         </tr>
                     </thead>
-                    <tbody id="membersTableBody" class="divide-y divide-slate-100"></tbody>
+                    <tbody id="membersTableBody" class="divide-y divide-slate-800/60"></tbody>
                 </table>
             </div>
         </div>
@@ -529,22 +559,22 @@
         <div id="tab-history" class="tab-content p-8 hidden">
             <div class="mb-6 flex justify-between items-center">
                 <div>
-                    <h2 class="text-xl font-bold text-slate-900">Software Visitor & Login History</h2>
-                    <p class="text-xs text-slate-500 mt-0.5">Track user sessions, login times, and software activity visits.</p>
+                    <h2 class="text-xl font-black text-white tracking-wide">Software Visitor & Login History</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Track user sessions, login times, and software activity visits.</p>
                 </div>
-                <button onclick="clearVisitorHistory()" class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 text-xs font-semibold px-3 py-1.5 rounded transition">Clear History</button>
+                <button onclick="clearVisitorHistory()" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-bold px-3.5 py-2 rounded-xl transition">Clear History</button>
             </div>
-            <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-                <table class="w-full text-left text-xs text-slate-700 whitespace-nowrap">
-                    <thead class="bg-slate-50 border-b border-slate-200 font-semibold text-slate-600">
+            <div class="glass-card rounded-2xl shadow-2xl overflow-hidden border border-slate-800">
+                <table class="w-full text-left text-xs text-slate-300 whitespace-nowrap">
+                    <thead class="bg-slate-900/90 border-b border-slate-800 font-bold text-slate-300">
                         <tr>
-                            <th class="p-3">Username</th>
-                            <th class="p-3">Role</th>
-                            <th class="p-3">Access Action / Event</th>
-                            <th class="p-3">Timestamp</th>
+                            <th class="p-3.5">Username</th>
+                            <th class="p-3.5">Role</th>
+                            <th class="p-3.5">Access Action / Event</th>
+                            <th class="p-3.5">Timestamp</th>
                         </tr>
                     </thead>
-                    <tbody id="historyTableBody" class="divide-y divide-slate-100"></tbody>
+                    <tbody id="historyTableBody" class="divide-y divide-slate-800/60"></tbody>
                 </table>
             </div>
         </div>
@@ -552,45 +582,45 @@
     </main>
 
     <!-- Modal for Add / Edit Container -->
-    <div id="modalOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col border border-slate-200">
-            <div class="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-xl">
+    <div id="modalOverlay" class="fixed inset-0 bg-[#070B14]/80 backdrop-blur-md hidden flex items-center justify-center p-4 z-50">
+        <div class="glass-card rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col border border-slate-700">
+            <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/60 rounded-t-2xl">
                 <div>
-                    <h3 id="modalTitle" class="text-base font-bold text-slate-900">Modify Container Record</h3>
-                    <p id="modalSubtitle" class="text-xs text-slate-500">Update master sheet fields below.</p>
+                    <h3 id="modalTitle" class="text-base font-black text-white">Modify Container Record</h3>
+                    <p id="modalSubtitle" class="text-xs text-slate-400">Update master sheet fields below.</p>
                 </div>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 font-bold text-lg p-1">&times;</button>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white font-bold text-xl p-1">&times;</button>
             </div>
 
             <form id="recordForm" onsubmit="handleFormSubmit(event)" class="p-6 overflow-y-auto space-y-6 text-xs flex-1">
                 <input type="hidden" id="editIndex" value="-1">
 
-                <div id="auditTrailBox" class="bg-slate-50 p-2.5 rounded border border-slate-200 text-[11px] text-slate-500 flex justify-between">
-                    <span>Last Updated By: <strong id="auditUser" class="text-slate-700">System</strong></span>
-                    <span>Timestamp: <strong id="auditTime" class="text-slate-700">N/A</strong></span>
+                <div id="auditTrailBox" class="bg-slate-900/80 p-3 rounded-xl border border-slate-800 text-[11px] text-slate-400 flex justify-between">
+                    <span>Last Updated By: <strong id="auditUser" class="text-white">System</strong></span>
+                    <span>Timestamp: <strong id="auditTime" class="text-white">N/A</strong></span>
                 </div>
 
                 <div>
-                    <h4 class="font-bold text-blue-600 uppercase tracking-wider mb-3 pb-1 border-b border-slate-200">1. Shipment & Equipment Details</h4>
+                    <h4 class="font-black text-blue-400 uppercase tracking-widest mb-3 pb-1.5 border-b border-slate-800">1. Shipment & Equipment Details</h4>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div><label class="block font-semibold mb-1 text-slate-600">S. No</label><input type="number" id="f_sno" required class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Date of documents</label><input type="text" id="f_doc_date" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Customer Name</label><input type="text" id="f_customer" required class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Line</label><input type="text" id="f_line" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">BL Number</label><input type="text" id="f_bl" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Container Number</label><input type="text" id="f_container" required class="w-full p-2 bg-slate-50 border border-slate-300 rounded font-semibold"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Cross Stuffing Container No</label><input type="text" id="f_cross_container" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">S. No</label><input type="number" id="f_sno" required class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Date of documents</label><input type="text" id="f_doc_date" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Customer Name</label><input type="text" id="f_customer" required class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Line</label><input type="text" id="f_line" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">BL Number</label><input type="text" id="f_bl" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Container Number</label><input type="text" id="f_container" required class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl font-bold text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Cross Stuffing Container No</label><input type="text" id="f_cross_container" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
                         <div>
-                            <label class="block font-semibold mb-1 text-slate-600">Container Type</label>
-                            <select id="f_type" class="w-full p-2 bg-slate-50 border border-slate-300 rounded">
+                            <label class="block font-bold mb-1 text-slate-300">Container Type</label>
+                            <select id="f_type" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white">
                                 <option value="40 FT HC">40 FT HC</option>
                                 <option value="20 FT HC">20 FT HC</option>
                                 <option value="40 FT Reefer">40 FT Reefer</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block font-semibold mb-1 text-slate-600">SOC / COC</label>
-                            <select id="f_soc_coc" class="w-full p-2 bg-slate-50 border border-slate-300 rounded">
+                            <label class="block font-bold mb-1 text-slate-300">SOC / COC</label>
+                            <select id="f_soc_coc" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white">
                                 <option value="SOC">SOC</option>
                                 <option value="COC">COC</option>
                             </select>
@@ -599,41 +629,41 @@
                 </div>
 
                 <div>
-                    <h4 class="font-bold text-blue-600 uppercase tracking-wider mb-3 pb-1 border-b border-slate-200">2. Cargo Specs & Tonnage</h4>
+                    <h4 class="font-black text-blue-400 uppercase tracking-widest mb-3 pb-1.5 border-b border-slate-800">2. Cargo Specs & Tonnage</h4>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div><label class="block font-semibold mb-1 text-slate-600">BL Weight (kg)</label><input type="number" id="f_bl_weight" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Iran Weight (kg)</label><input type="number" id="f_iran_weight" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Consignee</label><input type="text" id="f_consignee" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Shipper</label><input type="text" id="f_shipper" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Item Description</label><input type="text" id="f_item" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Quantity</label><input type="text" id="f_quantity" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Port of Loading</label><input type="text" id="f_pol" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Port of Discharging</label><input type="text" id="f_pod" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">BL Date</label><input type="text" id="f_bl_date" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">BL Weight (kg)</label><input type="number" id="f_bl_weight" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Iran Weight (kg)</label><input type="number" id="f_iran_weight" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Consignee</label><input type="text" id="f_consignee" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Shipper</label><input type="text" id="f_shipper" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Item Description</label><input type="text" id="f_item" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Quantity</label><input type="text" id="f_quantity" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Port of Loading</label><input type="text" id="f_pol" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Port of Discharging</label><input type="text" id="f_pod" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">BL Date</label><input type="text" id="f_bl_date" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
                     </div>
                 </div>
 
                 <div>
-                    <h4 class="font-bold text-blue-600 uppercase tracking-wider mb-3 pb-1 border-b border-slate-200">3. Port Milestones & Border Exit</h4>
+                    <h4 class="font-black text-blue-400 uppercase tracking-widest mb-3 pb-1.5 border-b border-slate-800">3. Port Milestones & Border Exit</h4>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div><label class="block font-semibold mb-1 text-slate-600">Arrival DXB</label><input type="text" id="f_arrival_dxb" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Jebel Ali Agent</label><input type="text" id="f_jea_agent" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Info DXB</label><input type="text" id="f_info_dxb" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Loading DXB</label><input type="text" id="f_loading_dxb" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Final Destination</label><input type="text" id="f_final_dest" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Iran Consignee</label><input type="text" id="f_iran_consignee" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Arrival Iran</label><input type="text" id="f_arrival_iran" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Info Iran</label><input type="text" id="f_info_iran" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Loading Iran</label><input type="text" id="f_loading_iran" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Exit Date</label><input type="text" id="f_exit" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">Jawaz / Afghanistan Agent</label><input type="text" id="f_afgh_agent" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
-                        <div><label class="block font-semibold mb-1 text-slate-600">C/Page</label><input type="text" id="f_cpage" class="w-full p-2 bg-slate-50 border border-slate-300 rounded"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Arrival DXB</label><input type="text" id="f_arrival_dxb" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Jebel Ali Agent</label><input type="text" id="f_jea_agent" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Info DXB</label><input type="text" id="f_info_dxb" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Loading DXB</label><input type="text" id="f_loading_dxb" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Final Destination</label><input type="text" id="f_final_dest" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Iran Consignee</label><input type="text" id="f_iran_consignee" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Arrival Iran</label><input type="text" id="f_arrival_iran" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Info Iran</label><input type="text" id="f_info_iran" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Loading Iran</label><input type="text" id="f_loading_iran" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Exit Date</label><input type="text" id="f_exit" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">Jawaz / Afghanistan Agent</label><input type="text" id="f_afgh_agent" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
+                        <div><label class="block font-bold mb-1 text-slate-300">C/Page</label><input type="text" id="f_cpage" class="w-full p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl text-white"></div>
                     </div>
                 </div>
 
-                <div class="pt-4 border-t border-slate-200 flex justify-end space-x-2">
-                    <button type="button" onclick="closeModal()" class="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-md font-semibold transition">Cancel</button>
-                    <button type="submit" id="saveRecordBtn" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-semibold transition shadow-sm">Save Changes</button>
+                <div class="pt-4 border-t border-slate-800 flex justify-end space-x-3">
+                    <button type="button" onclick="closeModal()" class="px-5 py-2.5 glass-panel hover:bg-slate-800 text-white rounded-xl font-bold transition">Cancel</button>
+                    <button type="submit" id="saveRecordBtn" class="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold transition btn-3d shadow-lg shadow-blue-600/30">Save Changes</button>
                 </div>
             </form>
         </div>
@@ -759,13 +789,13 @@
 
             verifyScreen.classList.add('hidden');
             if (tab === 'signin') {
-                sigInTab.className = "flex-1 pb-2 text-center border-b-2 border-blue-600 text-blue-600";
-                sigUpTab.className = "flex-1 pb-2 text-center text-slate-400 hover:text-slate-600";
+                sigInTab.className = "flex-1 pb-2.5 text-center border-b-2 border-blue-500 text-blue-400 transition font-black";
+                sigUpTab.className = "flex-1 pb-2.5 text-center text-slate-400 hover:text-slate-200 transition font-bold";
                 sigInForm.classList.remove('hidden');
                 sigUpForm.classList.add('hidden');
             } else {
-                sigUpTab.className = "flex-1 pb-2 text-center border-b-2 border-emerald-600 text-emerald-600";
-                sigInTab.className = "flex-1 pb-2 text-center text-slate-400 hover:text-slate-600";
+                sigUpTab.className = "flex-1 pb-2.5 text-center border-b-2 border-emerald-500 text-emerald-400 transition font-black";
+                sigInTab.className = "flex-1 pb-2.5 text-center text-slate-400 hover:text-slate-200 transition font-bold";
                 sigUpForm.classList.remove('hidden');
                 sigInForm.classList.add('hidden');
             }
@@ -944,20 +974,20 @@
                     const docId = doc.id;
 
                     const tr = document.createElement('tr');
-                    tr.className = "border-b border-slate-100 hover:bg-slate-50";
+                    tr.className = "border-b border-slate-800/60 hover:bg-slate-800/40 transition";
                     tr.innerHTML = `
-                        <td class="p-3 font-bold text-slate-900">${data.username}</td>
-                        <td class="p-3 font-mono font-bold text-blue-600 bg-blue-50/50">${data.code || '000000'}</td>
-                        <td class="p-3"><span class="px-2 py-0.5 font-bold uppercase text-[10px] rounded ${data.verified ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${data.verified ? 'Verified Active' : 'Pending Verification'}</span></td>
-                        <td class="p-3"><span class="px-2 py-0.5 font-bold uppercase text-[10px] rounded ${data.role === 'admin' ? 'bg-blue-100 text-blue-800' : data.role === 'operations' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700'}">${data.role}</span></td>
-                        <td class="p-3 flex items-center space-x-2">
-                            ${!data.verified ? `<button onclick="approveMember('${docId}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded text-[10px]">Approve</button>` : ''}
-                            <select onchange="updateMemberRole('${docId}', this.value)" class="p-1 text-xs bg-slate-50 border border-slate-300 rounded focus:bg-white">
+                        <td class="p-3.5 font-bold text-white">${data.username}</td>
+                        <td class="p-3.5 font-mono font-bold text-blue-400 bg-blue-500/10 rounded">${data.code || '000000'}</td>
+                        <td class="p-3.5"><span class="px-2.5 py-1 font-black uppercase text-[10px] rounded-lg ${data.verified ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}">${data.verified ? 'Verified Active' : 'Pending Verification'}</span></td>
+                        <td class="p-3.5"><span class="px-2.5 py-1 font-black uppercase text-[10px] rounded-lg ${data.role === 'admin' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : data.role === 'operations' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-slate-800 text-slate-300 border border-slate-700'}">${data.role}</span></td>
+                        <td class="p-3.5 flex items-center space-x-2">
+                            ${!data.verified ? `<button onclick="approveMember('${docId}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-lg text-[10px] btn-3d">Approve</button>` : ''}
+                            <select onchange="updateMemberRole('${docId}', this.value)" class="p-1.5 text-xs bg-slate-900 border border-slate-700 rounded-lg text-white font-semibold">
                                 <option value="admin" ${data.role === 'admin' ? 'selected' : ''}>Administrator</option>
                                 <option value="operations" ${data.role === 'operations' ? 'selected' : ''}>Operations Agent</option>
                                 <option value="viewer" ${data.role === 'viewer' ? 'selected' : ''}>Read-Only Viewer</option>
                             </select>
-                            <button onclick="removeMember('${docId}', '${data.username}')" class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 font-bold px-2.5 py-1 rounded text-[10px] transition">Remove</button>
+                            <button onclick="removeMember('${docId}', '${data.username}')" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 font-bold px-2.5 py-1 rounded-lg text-[10px] transition">Remove</button>
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -1005,12 +1035,12 @@
                 snapshot.docs.forEach(doc => {
                     const data = doc.data();
                     const tr = document.createElement('tr');
-                    tr.className = "border-b border-slate-100 hover:bg-slate-50";
+                    tr.className = "border-b border-slate-800/60 hover:bg-slate-800/40 transition";
                     tr.innerHTML = `
-                        <td class="p-3 font-bold text-slate-900">${data.username || 'Unknown'}</td>
-                        <td class="p-3 uppercase text-[10px] font-bold text-slate-600">${data.role || 'viewer'}</td>
-                        <td class="p-3 font-semibold text-blue-600">${data.action || 'Visited Software'}</td>
-                        <td class="p-3 text-slate-500">${data.timestamp || '-'}</td>
+                        <td class="p-3.5 font-bold text-white">${data.username || 'Unknown'}</td>
+                        <td class="p-3.5 uppercase text-[10px] font-black text-slate-400">${data.role || 'viewer'}</td>
+                        <td class="p-3.5 font-bold text-blue-400">${data.action || 'Visited Software'}</td>
+                        <td class="p-3.5 text-slate-400">${data.timestamp || '-'}</td>
                     `;
                     tbody.appendChild(tr);
                 });
@@ -1062,10 +1092,10 @@
             container.innerHTML = '';
             columns.forEach(col => {
                 const label = document.createElement('label');
-                label.className = "flex items-center space-x-2 text-[11px] hover:bg-slate-50 p-1 rounded cursor-pointer";
+                label.className = "flex items-center space-x-2 text-[11px] hover:bg-slate-800/60 p-1.5 rounded-lg cursor-pointer transition";
                 label.innerHTML = `
-                    <input type="checkbox" checked onchange="toggleColumnVisibility('${col}')" value="${col}" class="rounded text-blue-600 focus:ring-0">
-                    <span>${col}</span>
+                    <input type="checkbox" checked onchange="toggleColumnVisibility('${col}')" value="${col}" class="rounded bg-slate-900 border-slate-700 text-blue-600 focus:ring-0">
+                    <span class="text-slate-300 font-medium">${col}</span>
                 `;
                 container.appendChild(label);
             });
@@ -1194,17 +1224,17 @@
         // ==========================================
         function renderTableHeader() {
             const thead = document.getElementById('tableHeader');
-            let html = `<tr><th class="p-3 text-center sticky left-0 bg-slate-100 z-10 border-r border-slate-200">Action</th>`;
+            let html = `<tr><th class="p-3.5 text-center sticky left-0 bg-[#0B1120] z-10 border-r border-slate-800">Action</th>`;
 
             columns.forEach(col => {
                 if (visibleColumns.includes(col)) {
                     const isSorted = sortCol === col;
                     const sortIndicator = isSorted ? (sortAsc ? '▲' : '▼') : '↕';
                     html += `
-                        <th onclick="sortByColumn('${col}')" class="p-3 cursor-pointer hover:bg-slate-200 transition">
-                            <div class="flex items-center space-x-1">
+                        <th onclick="sortByColumn('${col}')" class="p-3.5 cursor-pointer hover:bg-slate-800/80 transition">
+                            <div class="flex items-center space-x-1.5">
                                 <span>${col}</span>
-                                <span class="text-[10px] text-slate-400">${sortIndicator}</span>
+                                <span class="text-[10px] text-slate-500">${sortIndicator}</span>
                             </div>
                         </th>
                     `;
@@ -1228,16 +1258,16 @@
             pageData.forEach((row) => {
                 const index = masterData.indexOf(row);
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+                tr.className = "hover:bg-slate-800/40 transition border-b border-slate-800/60";
 
                 const actionTd = document.createElement('td');
-                actionTd.className = "p-2 text-center sticky left-0 bg-white z-10 border-r border-slate-200 shadow-sm";
+                actionTd.className = "p-2.5 text-center sticky left-0 bg-[#0B1120] z-10 border-r border-slate-800 shadow-md";
 
                 if (currentRole === 'viewer') {
-                    actionTd.innerHTML = `<span class="text-[10px] text-slate-400 font-semibold">View Only</span>`;
+                    actionTd.innerHTML = `<span class="text-[10px] text-slate-500 font-semibold">View Only</span>`;
                 } else {
                     actionTd.innerHTML = `
-                        <button onclick="openModalForEdit(${index})" class="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-300 font-bold px-2 py-1 rounded text-[10px] transition">
+                        <button onclick="openModalForEdit(${index})" class="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold px-2.5 py-1 rounded-lg text-[10px] transition">
                             Edit
                         </button>
                     `;
@@ -1247,9 +1277,9 @@
                 columns.forEach(col => {
                     if (visibleColumns.includes(col)) {
                         const td = document.createElement('td');
-                        td.className = "p-3 font-medium";
+                        td.className = "p-3.5 font-medium text-slate-300";
                         let val = row[col] !== undefined && row[col] !== null ? row[col] : '-';
-                        if (col === 'Container number') td.className += " font-bold text-slate-900";
+                        if (col === 'Container number') td.className += " font-black text-white";
                         else if (col === 'Iran Weight' || col === 'BL Weight') val = (val !== '-' && !isNaN(val)) ? Number(val).toLocaleString() : val;
                         td.innerText = val;
                         tr.appendChild(td);
@@ -1285,7 +1315,8 @@
                 labels: ['Arrived DXB', 'In Transit (Iran)', 'Border Exit', 'Pending'],
                 datasets: [{
                     data: [dxb, iran, exit, pending],
-                    backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#cbd5e1']
+                    backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#334155'],
+                    borderWidth: 0
                 }]
             });
 
@@ -1302,7 +1333,8 @@
                 datasets: [{
                     label: 'Total BL Weight (KG)',
                     data: sortedCust.map(c => c[1]),
-                    backgroundColor: '#1d4ed8'
+                    backgroundColor: '#3b82f6',
+                    borderRadius: 6
                 }]
             });
 
@@ -1317,7 +1349,8 @@
                 datasets: [{
                     label: 'Containers Dispatched',
                     data: Object.values(destCounts),
-                    backgroundColor: '#059669'
+                    backgroundColor: '#10b981',
+                    borderRadius: 6
                 }]
             });
 
@@ -1331,7 +1364,8 @@
                 labels: Object.keys(typeCounts),
                 datasets: [{
                     data: Object.values(typeCounts),
-                    backgroundColor: ['#6366f1', '#8b5cf6', '#ec4899']
+                    backgroundColor: ['#6366f1', '#8b5cf6', '#ec4899'],
+                    borderWidth: 0
                 }]
             });
         }
@@ -1342,7 +1376,17 @@
             chartInstances[canvasId] = new Chart(ctx, {
                 type: type,
                 data: data,
-                options: { responsive: true, maintainAspectRatio: false }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8', font: { size: 11, family: 'sans-serif' } } }
+                    },
+                    scales: type === 'bar' ? {
+                        x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    } : {}
+                }
             });
         }
 
@@ -1352,14 +1396,12 @@
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.nav-btn').forEach(el => {
-                el.classList.remove('bg-slate-800', 'text-white', 'border-l-4', 'border-blue-500');
-                el.classList.add('hover:bg-slate-800', 'hover:text-white', 'text-slate-300');
+                el.className = "nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white rounded-xl transition";
             });
 
             document.getElementById('tab-' + tabId).classList.remove('hidden');
             const activeNav = document.getElementById('nav-' + tabId);
-            activeNav.classList.add('bg-slate-800', 'text-white', 'border-l-4', 'border-blue-500');
-            activeNav.classList.remove('hover:bg-slate-800');
+            activeNav.className = "nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-bold rounded-xl bg-gradient-to-r from-blue-600/30 to-indigo-600/20 text-white border border-blue-500/40 shadow-[0_4px_12px_rgba(59,130,246,0.2)]";
 
             if (tabId === 'analytics') renderAnalyticsCharts();
             if (tabId === 'tracking') renderTrackingView();
@@ -1379,9 +1421,9 @@
                 const btn = document.getElementById('hubTab-' + h);
                 if (btn) {
                     if (h === hubKey) {
-                        btn.className = "px-4 py-2 border-b-2 border-blue-600 text-blue-600 bg-white rounded-t";
+                        btn.className = "px-4 py-2.5 border-b-2 border-blue-500 text-blue-400 bg-slate-900/60 rounded-t-xl transition font-black";
                     } else {
-                        btn.className = "px-4 py-2 text-slate-500 hover:text-slate-800 rounded-t";
+                        btn.className = "px-4 py-2.5 text-slate-400 hover:text-white rounded-t-xl transition font-bold";
                     }
                 }
             });
@@ -1407,7 +1449,7 @@
             agents.forEach(agent => {
                 const btn = document.createElement('button');
                 const isActive = currentTrackingSubTab === agent;
-                btn.className = `px-3 py-1 rounded transition ${isActive ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`;
+                btn.className = `px-3 py-1.5 rounded-xl transition font-bold text-xs ${isActive ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/30' : 'bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white border border-slate-800'}`;
                 btn.innerText = agent;
                 btn.onclick = () => {
                     currentTrackingSubTab = agent;
@@ -1529,7 +1571,7 @@
 
             filtered.forEach((r) => {
                 const tr = document.createElement('tr');
-                tr.className = "border-b border-slate-100 hover:bg-slate-50";
+                tr.className = "border-b border-slate-800/60 hover:bg-slate-800/45 transition";
 
                 let milestoneVal = '-';
                 if (currentTrackingHub === 'cleared') milestoneVal = r['Exit'] || r['Arrival Iran'] || r['Arrival DXB'] || '-';
@@ -1542,16 +1584,16 @@
                 const activeHubLabel = currentTrackingHub === 'cleared' ? 'Cleared' : currentTrackingHub === 'ignored' ? 'Ignored' : currentTrackingSubTab;
 
                 tr.innerHTML = `
-                    <td class="p-3 font-bold text-slate-900">${r['Container number'] || 'N/A'}</td>
-                    <td class="p-3">${r['BL number'] || '-'}</td>
-                    <td class="p-3">${r['Customer name'] || '-'}</td>
-                    <td class="p-3 font-semibold text-blue-600">${activeHubLabel}</td>
-                    <td class="p-3 text-slate-600">${milestoneVal}</td>
-                    <td class="p-3 flex items-center space-x-1.5">
-                        <input type="text" id="statusInput_${r.docId}" value="${currentStatus}" class="p-1 text-xs bg-slate-50 border border-slate-300 rounded font-medium focus:bg-white focus:outline-none w-28" placeholder="Status...">
-                        <button onclick="updateContainerStatusField('${r.docId}', document.getElementById('statusInput_${r.docId}').value)" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-[10px] font-semibold" title="Save Status">Save</button>
-                        <button onclick="updateContainerStatusField('${r.docId}', 'CLEARED')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[10px] font-semibold" title="Mark Cleared">Cleared</button>
-                        <button onclick="updateContainerStatusField('${r.docId}', 'IGNORED')" class="bg-slate-600 hover:bg-slate-700 text-white px-2 py-1 rounded text-[10px] font-semibold" title="Mark Ignore">Ignore</button>
+                    <td class="p-3.5 font-black text-white">${r['Container number'] || 'N/A'}</td>
+                    <td class="p-3.5 text-slate-300">${r['BL number'] || '-'}</td>
+                    <td class="p-3.5 text-slate-300">${r['Customer name'] || '-'}</td>
+                    <td class="p-3.5 font-bold text-blue-400">${activeHubLabel}</td>
+                    <td class="p-3.5 text-slate-400">${milestoneVal}</td>
+                    <td class="p-3.5 flex items-center space-x-2">
+                        <input type="text" id="statusInput_${r.docId}" value="${currentStatus}" class="p-1.5 text-xs bg-slate-900 border border-slate-700 rounded-lg text-white font-medium focus:outline-none focus:border-blue-500 w-28" placeholder="Status...">
+                        <button onclick="updateContainerStatusField('${r.docId}', document.getElementById('statusInput_${r.docId}').value)" class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-bold btn-3d" title="Save Status">Save</button>
+                        <button onclick="updateContainerStatusField('${r.docId}', 'CLEARED')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-bold btn-3d" title="Mark Cleared">Cleared</button>
+                        <button onclick="updateContainerStatusField('${r.docId}', 'IGNORED')" class="bg-slate-700 hover:bg-slate-600 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-bold" title="Mark Ignore">Ignore</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -1573,16 +1615,16 @@
                 const isPaid = r['Exit'] ? 'Paid' : 'Pending';
 
                 const tr = document.createElement('tr');
-                tr.className = "border-b border-slate-100 hover:bg-slate-50";
+                tr.className = "border-b border-slate-800/60 hover:bg-slate-800/40 transition";
                 tr.innerHTML = `
-                    <td class="p-3 font-bold text-slate-900">${r['Container number']}</td>
-                    <td class="p-3">${r['Customer name']}</td>
-                    <td class="p-3">${blWt.toLocaleString()} kg</td>
-                    <td class="p-3">${iranWt ? iranWt.toLocaleString() + ' kg' : '-'}</td>
-                    <td class="p-3 text-emerald-600 font-semibold">$${estFreight.toFixed(2)}</td>
-                    <td class="p-3 text-amber-600">$${estCost.toFixed(2)}</td>
-                    <td class="p-3 font-bold">$${estFreight.toFixed(2)}</td>
-                    <td class="p-3"><span class="px-2 py-0.5 text-[10px] font-bold rounded ${isPaid === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${isPaid}</span></td>
+                    <td class="p-3.5 font-black text-white">${r['Container number']}</td>
+                    <td class="p-3.5 text-slate-300">${r['Customer name']}</td>
+                    <td class="p-3.5 text-slate-300">${blWt.toLocaleString()} kg</td>
+                    <td class="p-3.5 text-slate-300">${iranWt ? iranWt.toLocaleString() + ' kg' : '-'}</td>
+                    <td class="p-3.5 text-emerald-400 font-bold">$${estFreight.toFixed(2)}</td>
+                    <td class="p-3.5 text-amber-400">$${estCost.toFixed(2)}</td>
+                    <td class="p-3.5 font-black text-white">$${estFreight.toFixed(2)}</td>
+                    <td class="p-3.5"><span class="px-2.5 py-1 text-[10px] font-black uppercase rounded-lg ${isPaid === 'Paid' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}">${isPaid}</span></td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -1643,16 +1685,16 @@
             tbody.innerHTML = '';
             records.forEach(r => {
                 const tr = document.createElement('tr');
-                tr.className = "border-b border-slate-100 hover:bg-slate-50";
+                tr.className = "border-b border-slate-200 hover:bg-slate-50";
                 tr.innerHTML = `
-                    <td class="p-2">${r['S. No']}</td>
-                    <td class="p-2 font-bold">${r['Container number']}</td>
-                    <td class="p-2">${r['BL number'] || '-'}</td>
-                    <td class="p-2">${r['Item'] || '-'}</td>
-                    <td class="p-2">${r['BL Weight'] ? Number(r['BL Weight']).toLocaleString() : '-'}</td>
-                    <td class="p-2">${r['Iran Weight'] ? Number(r['Iran Weight']).toLocaleString() : '-'}</td>
-                    <td class="p-2">${r['Final Destination'] || '-'}</td>
-                    <td class="p-2">${r['Exit'] || '-'}</td>
+                    <td class="p-3">${r['S. No']}</td>
+                    <td class="p-3 font-bold">${r['Container number']}</td>
+                    <td class="p-3">${r['BL number'] || '-'}</td>
+                    <td class="p-3">${r['Item'] || '-'}</td>
+                    <td class="p-3">${r['BL Weight'] ? Number(r['BL Weight']).toLocaleString() : '-'}</td>
+                    <td class="p-3">${r['Iran Weight'] ? Number(r['Iran Weight']).toLocaleString() : '-'}</td>
+                    <td class="p-3">${r['Final Destination'] || '-'}</td>
+                    <td class="p-3">${r['Exit'] || '-'}</td>
                 `;
                 tbody.appendChild(tr);
             });
