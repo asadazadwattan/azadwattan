@@ -672,7 +672,7 @@
         let currentRole = 'viewer';
         let pendingVerifyUsername = '';
 
-        // Container Tracking-Specific State
+        // Container Tracking-Specific State with LocalStorage Persistence
         let currentTrackingHub = 'dubai';
         let currentTrackingSubTab = 'Interglobe';
         let customAgentsMap = {
@@ -680,6 +680,16 @@
             iran: ['Almas', 'Artiman'],
             afghanistan: ['Gulbadin', 'Kaleem Ullah', 'Niamat Ullah', 'Asadullah Herat', 'Asad Afghan Farah', 'Pashtoon Yar', 'Ahmad Ullah']
         };
+
+        // Load persisted custom agents from localStorage if available
+        const savedAgents = localStorage.getItem('azad_wattan_agents');
+        if (savedAgents) {
+            try {
+                customAgentsMap = JSON.parse(savedAgents);
+            } catch (e) {
+                console.error("Error loading custom agents:", e);
+            }
+        }
 
         let sortCol = null;
         let sortAsc = true;
@@ -1367,7 +1377,7 @@
         }
 
         // ==========================================
-        // 10. ADVANCED CONTAINER TRACKING & HUB LOGIC (UPDATED WITH CLEARED, IGNORED & DD.MM.YY SORTING)
+        // 10. ADVANCED CONTAINER TRACKING & HUB LOGIC (UPDATED WITH CLEARED, IGNORED & PERSISTENT AGENTS)
         // ==========================================
         function switchTrackingHub(hubKey) {
             currentTrackingHub = hubKey;
@@ -1421,6 +1431,8 @@
 
             if (!customAgentsMap[currentTrackingHub].includes(formattedName)) {
                 customAgentsMap[currentTrackingHub].push(formattedName);
+                // Save updated agents map to localStorage
+                localStorage.setItem('azad_wattan_agents', JSON.stringify(customAgentsMap));
                 currentTrackingSubTab = formattedName;
                 renderTrackingSubTabs();
                 renderTrackingView();
@@ -1466,15 +1478,17 @@
                 const trackingStatus = (r['trackingStatus'] || '').trim().toUpperCase();
                 const loadingDxbVal = (r['Loading DXB'] || '').toString().trim();
 
+                // 1. Cleared Tab Check
                 if (currentTrackingHub === 'cleared') {
                     return trackingStatus === 'CLEARED';
                 }
+                // 2. Ignored Tab Check
                 if (currentTrackingHub === 'ignored') {
                     return trackingStatus === 'IGNORED' || loadingDxbVal.toUpperCase().includes('IGNORED');
                 }
 
-                // If not in Cleared/Ignored tabs, exclude if marked as Ignored
-                if (trackingStatus === 'IGNORED' || loadingDxbVal.toUpperCase().includes('IGNORED')) {
+                // 3. For active hubs (Dubai, Iran, Afghanistan): exclude any container marked as CLEARED or IGNORED
+                if (trackingStatus === 'CLEARED' || trackingStatus === 'IGNORED' || loadingDxbVal.toUpperCase().includes('IGNORED')) {
                     return false;
                 }
 
@@ -1547,7 +1561,7 @@
                     <td class="p-3 flex items-center space-x-1.5">
                         <input type="text" id="statusInput_${r.docId}" value="${currentStatus}" class="p-1 text-xs bg-slate-50 border border-slate-300 rounded font-medium focus:bg-white focus:outline-none w-28" placeholder="Status...">
                         <button onclick="updateContainerStatusField('${r.docId}', document.getElementById('statusInput_${r.docId}').value)" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-[10px] font-semibold" title="Save Status">Save</button>
-                        <button onclick="updateContainerStatusField('${r.docId}', 'Cleared')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[10px] font-semibold" title="Mark Cleared">Cleared</button>
+                        <button onclick="updateContainerStatusField('${r.docId}', 'CLEARED')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[10px] font-semibold" title="Mark Cleared">Cleared</button>
                         <button onclick="updateContainerStatusField('${r.docId}', 'IGNORED')" class="bg-slate-600 hover:bg-slate-700 text-white px-2 py-1 rounded text-[10px] font-semibold" title="Mark Ignore">Ignore</button>
                     </td>
                 `;
