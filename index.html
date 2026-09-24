@@ -370,13 +370,22 @@
 
         <!-- TAB 3: CONTAINER TRACKING -->
         <div id="tab-tracking" class="tab-content p-8 hidden">
-            <div class="mb-6 flex justify-between items-center">
+            <div class="mb-6 flex justify-between items-center flex-wrap gap-4">
                 <div>
                     <h2 class="text-xl font-black text-white tracking-wide">Container Lifecycle Tracking</h2>
                     <p class="text-xs text-slate-400 mt-0.5">Track shipment milestones across Dubai, Iran, and Afghanistan borders.</p>
                 </div>
-                <div>
-                    <input type="text" id="trackingSearch" onkeyup="filterTracking()" placeholder="Filter container or BL..." class="w-64 pl-3.5 pr-4 py-2 text-xs bg-slate-900/80 border border-slate-700/80 rounded-xl text-white focus:outline-none focus:border-blue-500">
+                <div class="flex items-center space-x-3">
+                    <input type="text" id="trackingSearch" onkeyup="renderTrackingHub()" placeholder="Filter container or BL..." class="w-56 px-3 py-2 text-xs bg-slate-900/80 border border-slate-700/80 rounded-xl text-white focus:outline-none focus:border-blue-500">
+                    <!-- Sorting Option -->
+                    <select id="trackingSort" onchange="renderTrackingHub()" class="p-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-white">
+                        <option value="date_desc">Sort: Date (Newest)</option>
+                        <option value="date_asc">Sort: Date (Oldest)</option>
+                        <option value="container_asc">Sort: Container ID (A-Z)</option>
+                        <option value="container_desc">Sort: Container ID (Z-A)</option>
+                    </select>
+                    <!-- Generate PDF Option -->
+                    <button onclick="generateTrackingPDF()" class="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition btn-3d shadow-lg shadow-red-600/30">Generate PDF Report 📄</button>
                 </div>
             </div>
 
@@ -417,8 +426,8 @@
                 </div>
             </div>
 
-            <!-- TRACKING TABLE CONTAINER WITH STATUS COLUMN -->
-            <div class="glass-card rounded-b-2xl shadow-2xl overflow-hidden border border-slate-800">
+            <!-- TRACKING TABLE CONTAINER WITH STATUS & SAVE BUTTON -->
+            <div id="trackingReportWrapper" class="glass-card rounded-b-2xl shadow-2xl overflow-hidden border border-slate-800">
                 <div class="overflow-x-auto table-scroll">
                     <table class="w-full text-left text-xs text-slate-300 whitespace-nowrap">
                         <thead class="bg-slate-900/90 border-b border-slate-800 font-bold text-slate-300">
@@ -428,7 +437,7 @@
                                 <th class="p-3.5">Customer</th>
                                 <th class="p-3.5">Active Hub / Agent</th>
                                 <th class="p-3.5">Milestone Date (dd.mm.yy)</th>
-                                <th class="p-3.5">Status Column (Editable)</th>
+                                <th class="p-3.5">Status & Save Action</th>
                             </tr>
                         </thead>
                         <tbody id="trackingTableBody" class="divide-y divide-slate-800/60"></tbody>
@@ -755,14 +764,9 @@
         // THEME & LAYOUT CUSTOMIZATION ENGINE
         // ==========================================
         function toggleDarkMode() {
-            // Toggle light-mode class on the body element
             document.body.classList.toggle('light-mode');
             const isLightMode = document.body.classList.contains('light-mode');
-            
-            // Save preference to localStorage
             localStorage.setItem('lightMode', isLightMode);
-            
-            // Update button label text dynamically
             const btn = document.getElementById('themeToggleBtn');
             if (btn) {
                 btn.innerHTML = isLightMode ? '<span>☀️ Light Mode</span>' : '<span>🌙 Dark Mode</span>';
@@ -774,7 +778,6 @@
             localStorage.setItem('themeLayout', layoutType);
         }
 
-        // Load saved preferences when page loads
         window.addEventListener('DOMContentLoaded', () => {
             const savedLightMode = localStorage.getItem('lightMode') === 'true';
             if (savedLightMode) {
@@ -810,9 +813,8 @@
         const containersCollection = db.collection('containers');
         const membersCollection = db.collection('members');
         const historyCollection = db.collection('visitor_history');
-        const auditLogsCollection = db.collection('audit_logs'); // Feature 2: Audit Logs
+        const auditLogsCollection = db.collection('audit_logs');
 
-        // Application State Data Variables
         let masterData = [];
         let filteredData = [];
         let visibleColumns = [];
@@ -820,7 +822,7 @@
         let currentRole = 'viewer';
         let pendingVerifyUsername = '';
 
-        // Container Tracking-Specific State with LocalStorage Persistence
+        // Container Tracking-Specific State with Updated Agent Map for Iran & Afghanistan Hubs
         let currentTrackingHub = 'dubai';
         let currentTrackingSubTab = 'Interglobe';
         let customAgentsMap = {
@@ -871,19 +873,6 @@
             return parsed;
         }
 
-        function parseDDMMYY(dateStr) {
-            if (!dateStr || dateStr === '-') return new Date(0);
-            const parts = dateStr.toString().split('.');
-            if (parts.length === 3) {
-                let day = parseInt(parts[0], 10);
-                let month = parseInt(parts[1], 10) - 1;
-                let year = parseInt(parts[2], 10);
-                if (year < 100) year += 2000;
-                return new Date(year, month, day);
-            }
-            return new Date(dateStr);
-        }
-
         window.addEventListener('DOMContentLoaded', () => {
             visibleColumns = [...columns];
             renderColumnCheckboxes();
@@ -931,39 +920,30 @@
 
             const snap = await membersCollection.where('username', '==', user).get();
             if (snap.empty) {
-                errEl.innerText = "Invalid username or password.";
+                errEl.textContent = "Username or email not found.";
                 errEl.classList.remove('hidden');
                 return;
             }
 
-            const memberDoc = snap.docs[0];
-            const data = memberDoc.data();
+            let userData = null;
+            snap.forEach(doc => { userData = doc.data(); });
 
-            if (data.password !== pass) {
-                errEl.innerText = "Invalid username or password.";
+            if (userData.password !== pass) {
+                errEl.textContent = "Incorrect password.";
                 errEl.classList.remove('hidden');
                 return;
             }
 
-            if (!data.verified && data.role !== 'admin') {
+            if (userData.verified === false) {
                 pendingVerifyUsername = user;
                 document.getElementById('signinForm').classList.add('hidden');
-                document.getElementById('signupForm').classList.add('hidden');
                 document.getElementById('verificationScreen').classList.remove('hidden');
                 return;
             }
 
-            currentUsername = data.username;
-            currentRole = data.role;
-
-            await historyCollection.add({
-                username: currentUsername,
-                role: currentRole,
-                action: 'Signed In / Visited Software',
-                timestamp: new Date().toLocaleString()
-            });
-
-            completeLogin();
+            currentUsername = userData.username;
+            currentRole = userData.role || 'viewer';
+            finalizeLoginSuccess();
         }
 
         async function handleSignUp(e) {
@@ -972,16 +952,16 @@
             const pass = document.getElementById('signupPassword').value;
             const errEl = document.getElementById('signupError');
 
-            const allMembersSnap = await membersCollection.get();
-            if (allMembersSnap.size >= 10) {
-                errEl.innerText = "Registration failed: Maximum member limit of 10 reached.";
+            const allSnap = await membersCollection.get();
+            if (allSnap.size >= 10) {
+                errEl.textContent = "Maximum member limit (10) reached.";
                 errEl.classList.remove('hidden');
                 return;
             }
 
-            const existing = allMembersSnap.docs.find(d => d.data().username === user);
-            if (existing) {
-                errEl.innerText = "Username already exists. Please choose another.";
+            const existing = await membersCollection.where('username', '==', user).get();
+            if (!existing.empty) {
+                errEl.textContent = "Username already exists.";
                 errEl.classList.remove('hidden');
                 return;
             }
@@ -1007,366 +987,319 @@
 
             const snap = await membersCollection.where('username', '==', pendingVerifyUsername).get();
             if (snap.empty) {
-                errEl.innerText = "Account verification failed.";
+                errEl.textContent = "Account error. Please register again.";
                 errEl.classList.remove('hidden');
                 return;
             }
 
-            const docRef = snap.docs[0].ref;
-            const data = snap.docs[0].data();
+            let docId = '';
+            let userData = null;
+            snap.forEach(d => { docId = d.id; userData = d.data(); });
 
-            if (data.code !== enteredCode) {
-                errEl.innerText = "Invalid verification code. Check with your admin.";
+            if (userData.code !== enteredCode) {
+                errEl.textContent = "Incorrect verification code. Ask admin for correct code.";
                 errEl.classList.remove('hidden');
                 return;
             }
 
-            await docRef.update({ verified: true });
+            await membersCollection.doc(docId).update({ verified: true });
 
-            currentUsername = data.username;
-            currentRole = data.role;
-
-            await historyCollection.add({
-                username: currentUsername,
-                role: currentRole,
-                action: 'Account Verified & Signed In',
-                timestamp: new Date().toLocaleString()
-            });
-
-            completeLogin();
+            currentUsername = userData.username;
+            currentRole = userData.role || 'viewer';
+            finalizeLoginSuccess();
         }
 
         function backToSignIn() {
             document.getElementById('verificationScreen').classList.add('hidden');
-            switchAuthTab('signin');
+            document.getElementById('signinForm').classList.remove('hidden');
         }
 
-        function completeLogin() {
+        function finalizeLoginSuccess() {
             document.getElementById('authOverlay').classList.add('hidden');
-            document.getElementById('loggedUserDisplay').innerText = currentUsername;
-            document.getElementById('loggedRoleDisplay').innerText = currentRole;
-
-            const adminElements = document.querySelectorAll('.admin-only');
-            const addBtn = document.getElementById('addNewBtn');
-            const saveBtn = document.getElementById('saveRecordBtn');
+            document.getElementById('loggedUserDisplay').textContent = currentUsername;
+            document.getElementById('loggedRoleDisplay').textContent = currentRole;
 
             if (currentRole === 'admin') {
-                adminElements.forEach(el => el.classList.remove('hidden'));
-                if (addBtn) addBtn.style.display = 'inline-block';
-                if (saveBtn) saveBtn.style.display = 'inline-block';
-                loadMembersList();
-                loadVisitorHistory();
+                document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
             } else {
-                adminElements.forEach(el => el.classList.add('hidden'));
-                if (currentRole === 'viewer') {
-                    if (addBtn) addBtn.style.display = 'none';
-                    if (saveBtn) saveBtn.style.display = 'none';
-                } else {
-                    if (addBtn) addBtn.style.display = 'inline-block';
-                    if (saveBtn) saveBtn.style.display = 'inline-block';
-                }
+                document.querySelectorAll('.admin-only').forEach(el => el.classList.add('hidden'));
             }
-            applyFilters();
+
+            logVisitorHistory("Logged In");
+            loadMembersTable();
         }
 
         function logoutUser() {
+            logVisitorHistory("Logged Out");
             currentUsername = '';
             currentRole = 'viewer';
             document.getElementById('authOverlay').classList.remove('hidden');
             document.getElementById('signinUsername').value = '';
             document.getElementById('signinPassword').value = '';
-            document.getElementById('signupUsername').value = '';
-            document.getElementById('signupPassword').value = '';
-            document.getElementById('verificationCodeInput').value = '';
-            switchAuthTab('signin');
+            document.getElementById('signinError').classList.add('hidden');
         }
 
         // ==========================================
-        // 3. ADMIN-ONLY MEMBER MANAGEMENT & CODES
+        // 3. FIREBASE REALTIME LISTENERS & AUDIT
         // ==========================================
-        function loadMembersList() {
-            membersCollection.onSnapshot(snapshot => {
-                const tbody = document.getElementById('membersTableBody');
-                tbody.innerHTML = '';
-                const docs = snapshot.docs;
-                document.getElementById('memberCountBadge').innerText = `${docs.size} / 10 Members`;
+        function listenToFirebaseData() {
+            const storageEl = document.getElementById('storageStatus');
+            storageEl.textContent = "Syncing...";
+            storageEl.className = "text-blue-400";
 
-                docs.forEach(doc => {
-                    const data = doc.data();
-                    const docId = doc.id;
-
-                    const tr = document.createElement('tr');
-                    tr.className = "border-b border-slate-800/60 hover:bg-slate-800/40 transition";
-                    tr.innerHTML = `
-                        <td class="p-3.5 font-bold text-white">${data.username}</td>
-                        <td class="p-3.5 font-mono font-bold text-blue-400 bg-blue-500/10 rounded">${data.code || '000000'}</td>
-                        <td class="p-3.5"><span class="px-2.5 py-1 font-black uppercase text-[10px] rounded-lg ${data.verified ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}">${data.verified ? 'Verified Active' : 'Pending Verification'}</span></td>
-                        <td class="p-3.5"><span class="px-2.5 py-1 font-black uppercase text-[10px] rounded-lg ${data.role === 'admin' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : data.role === 'operations' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-slate-800 text-slate-300 border border-slate-700'}">${data.role}</span></td>
-                        <td class="p-3.5 flex items-center space-x-2">
-                            ${!data.verified ? `<button onclick="approveMember('${docId}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-lg text-[10px] btn-3d">Approve</button>` : ''}
-                            <select onchange="updateMemberRole('${docId}', this.value)" class="p-1.5 text-xs bg-slate-900 border border-slate-700 rounded-lg text-white font-semibold">
-                                <option value="admin" ${data.role === 'admin' ? 'selected' : ''}>Administrator</option>
-                                <option value="operations" ${data.role === 'operations' ? 'selected' : ''}>Operations Agent</option>
-                                <option value="viewer" ${data.role === 'viewer' ? 'selected' : ''}>Read-Only Viewer</option>
-                            </select>
-                            <button onclick="removeMember('${docId}', '${data.username}')" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 font-bold px-2.5 py-1 rounded-lg text-[10px] transition">Remove</button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
+            containersCollection.onSnapshot(snapshot => {
+                masterData = [];
+                snapshot.forEach(doc => {
+                    const raw = doc.data();
+                    const parsed = parseDataFromFirestore(raw);
+                    parsed.docId = doc.id;
+                    masterData.push(parsed);
                 });
+
+                storageEl.textContent = `Connected (${masterData.length} records)`;
+                storageEl.className = "text-emerald-400";
+
+                populateFilterDropdowns();
+                applyFilters();
+                renderTrackingHub();
+                renderExpensesTable();
+                renderRegionalAccounts();
+                populateCustomerDropdown();
+            }, error => {
+                console.error("Firestore sync error:", error);
+                storageEl.textContent = "Sync Failed";
+                storageEl.className = "text-red-400";
             });
         }
 
-        async function approveMember(docId) {
-            try {
-                await membersCollection.doc(docId).update({ verified: true });
-                alert("Member account verified and approved successfully!");
-            } catch (err) {
-                alert("Error approving member: " + err.message);
-            }
-        }
-
-        async function updateMemberRole(docId, newRole) {
-            try {
-                await membersCollection.doc(docId).update({ role: newRole });
-                alert("Member role successfully updated!");
-            } catch (err) {
-                alert("Error updating role: " + err.message);
-            }
-        }
-
-        async function removeMember(docId, username) {
-            if (username === currentUsername) {
-                alert("You cannot remove your own currently logged-in admin account.");
-                return;
-            }
-            if (!confirm(`Are you sure you want to remove member "${username}"?`)) return;
-            try {
-                await membersCollection.doc(docId).delete();
-                alert("Member removed successfully!");
-            } catch (err) {
-                alert("Error removing member: " + err.message);
-            }
-        }
-
-        function loadVisitorHistory() {
-            historyCollection.orderBy('timestamp', 'desc').onSnapshot(snapshot => {
-                const tbody = document.getElementById('historyTableBody');
-                tbody.innerHTML = '';
-
-                snapshot.docs.forEach(doc => {
-                    const data = doc.data();
-                    const tr = document.createElement('tr');
-                    tr.className = "border-b border-slate-800/60 hover:bg-slate-800/40 transition";
-                    tr.innerHTML = `
-                        <td class="p-3.5 font-bold text-white">${data.username || 'Unknown'}</td>
-                        <td class="p-3.5 uppercase text-[10px] font-black text-slate-400">${data.role || 'viewer'}</td>
-                        <td class="p-3.5 font-bold text-blue-400">${data.action || 'Visited Software'}</td>
-                        <td class="p-3.5 text-slate-400">${data.timestamp || '-'}</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            });
-        }
-
-        async function clearVisitorHistory() {
-            if (!confirm("Are you sure you want to clear all visitor history logs?")) return;
-            const snap = await historyCollection.get();
-            const batch = db.batch();
-            snap.docs.forEach(d => batch.delete(d.ref));
-            await batch.commit();
-        }
-
-        // ==========================================
-        // FEATURE 2: AUTOMATED AUDIT TRAIL LOGS
-        // ==========================================
         async function logAuditAction(actionType, containerNo, details) {
             try {
                 await auditLogsCollection.add({
                     user: currentUsername || 'System',
                     actionType: actionType,
                     containerNo: containerNo || 'N/A',
-                    details: details || '',
+                    details: details,
                     timestamp: new Date().toLocaleString()
                 });
             } catch (e) {
-                console.error("Error logging audit trail:", e);
+                console.error("Error logging audit:", e);
             }
         }
 
         function listenToAuditLogs() {
             auditLogsCollection.onSnapshot(snapshot => {
+                const logs = [];
+                snapshot.forEach(doc => logs.push(doc.data()));
+                logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                
                 const tbody = document.getElementById('auditLogsTableBody');
                 if (!tbody) return;
                 tbody.innerHTML = '';
-                snapshot.docs.forEach(doc => {
-                    const data = doc.data();
-                    const tr = document.createElement('tr');
-                    tr.className = "border-b border-slate-800/60 hover:bg-slate-800/40 transition";
-                    tr.innerHTML = `
-                        <td class="p-3.5 font-bold text-white">${data.user}</td>
-                        <td class="p-3.5 uppercase text-[10px] font-black text-blue-400">${data.actionType}</td>
-                        <td class="p-3.5 font-mono text-amber-300 font-bold">${data.containerNo}</td>
-                        <td class="p-3.5 text-slate-300">${data.details}</td>
-                        <td class="p-3.5 text-slate-400">${data.timestamp}</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            });
-        }
-
-        // ==========================================
-        // 4. REAL-TIME DATABASE SYNC (FIREBASE)
-        // ==========================================
-        function listenToFirebaseData() {
-            containersCollection.onSnapshot((snapshot) => {
-                masterData = snapshot.docs.map(doc => ({
-                    docId: doc.id,
-                    ...parseDataFromFirestore(doc.data())
-                }));
-
-                const statusEl = document.getElementById('storageStatus');
-                statusEl.innerText = 'Connected (Cloud)';
-                statusEl.className = 'text-emerald-400 font-bold';
-
-                initDataset();
-            }, (error) => {
-                console.error("Firestore Error: ", error);
-                const statusEl = document.getElementById('storageStatus');
-                statusEl.innerText = 'Connection Error';
-                statusEl.className = 'text-red-400 font-bold';
-            });
-        }
-
-        function initDataset() {
-            populateFilterDropdowns();
-            applyFilters();
-            populateCustomerDropdown();
-            updateEnhancedFinancialCards(); // Feature 3
-        }
-
-        // ==========================================
-        // 5. COLUMN VISIBILITY TOGGLE ENGINE
-        // ==========================================
-        function renderColumnCheckboxes() {
-            const container = document.getElementById('columnCheckboxes');
-            container.innerHTML = '';
-            columns.forEach(col => {
-                const label = document.createElement('label');
-                label.className = "flex items-center space-x-2 text-[11px] hover:bg-slate-800/60 p-1.5 rounded-lg cursor-pointer transition";
-                label.innerHTML = `
-                    <input type="checkbox" checked onchange="toggleColumnVisibility('${col}')" value="${col}" class="rounded bg-slate-900 border-slate-700 text-blue-600 focus:ring-0">
-                    <span class="text-slate-300 font-medium">${col}</span>
-                `;
-                container.appendChild(label);
-            });
-        }
-
-        function toggleColumnMenu() {
-            document.getElementById('columnMenu').classList.toggle('hidden');
-        }
-
-        function toggleColumnVisibility(colName) {
-            if (visibleColumns.includes(colName)) {
-                visibleColumns = visibleColumns.filter(c => c !== colName);
-            } else {
-                visibleColumns.push(colName);
-            }
-            renderTableHeader();
-            renderTable();
-        }
-
-        function selectAllColumns(selectAll) {
-            visibleColumns = selectAll ? [...columns] : [];
-            const checkboxes = document.querySelectorAll('#columnCheckboxes input[type="checkbox"]');
-            checkboxes.forEach(cb => cb.checked = selectAll);
-            renderTableHeader();
-            renderTable();
-        }
-
-        // ==========================================
-        // 6. SORTING & FILTERING LOGIC
-        // ==========================================
-        function sortByColumn(colName) {
-            if (sortCol === colName) {
-                sortAsc = !sortAsc;
-            } else {
-                sortCol = colName;
-                sortAsc = true;
-            }
-            renderTableHeader();
-
-            filteredData.sort((a, b) => {
-                let valA = a[colName] || '';
-                let valB = b[colName] || '';
-
-                let numA = parseFloat(valA);
-                let numB = parseFloat(valB);
-
-                if (!isNaN(numA) && !isNaN(numB)) {
-                    return sortAsc ? numA - numB : numB - numA;
+                
+                if (logs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">No audit logs recorded yet.</td></tr>';
+                    return;
                 }
-                return sortAsc ? valA.toString().localeCompare(valB.toString()) : valB.toString().localeCompare(valA.toString());
-            });
 
-            renderTable();
+                logs.forEach(log => {
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-800/40 transition">
+                            <td class="p-3.5 font-bold text-white">${log.user}</td>
+                            <td class="p-3.5 font-semibold text-blue-400">${log.actionType}</td>
+                            <td class="p-3.5 font-bold">${log.containerNo}</td>
+                            <td class="p-3.5 text-slate-300">${log.details}</td>
+                            <td class="p-3.5 text-slate-400">${log.timestamp}</td>
+                        </tr>
+                    `;
+                });
+            });
         }
 
-        function populateFilterDropdowns() {
-            const getUnique = (key) => [...new Set(masterData.map(r => r[key]))].filter(Boolean).sort();
-
-            const populateSelect = (elementId, values) => {
-                const select = document.getElementById(elementId);
-                const firstOpt = select.options[0];
-                select.innerHTML = '';
-                select.appendChild(firstOpt);
-                values.forEach(v => {
-                    const opt = document.createElement('option');
-                    opt.value = v;
-                    opt.innerText = v;
-                    select.appendChild(opt);
+        async function logVisitorHistory(action) {
+            try {
+                await historyCollection.add({
+                    username: currentUsername || 'Guest',
+                    role: currentRole,
+                    action: action,
+                    timestamp: new Date().toLocaleString()
                 });
-            };
+            } catch (e) {
+                console.error("Error logging visitor:", e);
+            }
 
-            populateSelect('filterCustomer', getUnique('Customer name'));
-            populateSelect('filterLine', getUnique('Line'));
-            populateSelect('filterSocCoc', getUnique('SOC / COC'));
-            populateSelect('filterDestination', getUnique('Final Destination'));
+            loadVisitorHistoryTable();
+        }
+
+        async function loadVisitorHistoryTable() {
+            const snap = await historyCollection.get();
+            const list = [];
+            snap.forEach(doc => list.push(doc.data()));
+            list.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            const tbody = document.getElementById('historyTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400">No visitor history found.</td></tr>';
+                return;
+            }
+
+            list.forEach(item => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-800/40 transition">
+                        <td class="p-3.5 font-bold text-white">${item.username}</td>
+                        <td class="p-3.5 capitalize text-amber-400 font-semibold">${item.role}</td>
+                        <td class="p-3.5 font-semibold text-blue-400">${item.action}</td>
+                        <td class="p-3.5 text-slate-400">${item.timestamp}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function clearVisitorHistory() {
+            if (currentRole !== 'admin') { alert("Admin access required."); return; }
+            if (!confirm("Are you sure you want to clear visitor history?")) return;
+            const snap = await historyCollection.get();
+            const batch = db.batch();
+            snap.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+            loadVisitorHistoryTable();
+        }
+
+        // ==========================================
+        // 4. MEMBERS MANAGEMENT (ADMIN TAB)
+        // ==========================================
+        async function loadMembersTable() {
+            membersCollection.onSnapshot(snapshot => {
+                const members = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    data.id = doc.id;
+                    members.push(data);
+                });
+
+                const badge = document.getElementById('memberCountBadge');
+                if (badge) badge.textContent = `${members.length} / 10 Members`;
+
+                const tbody = document.getElementById('membersTableBody');
+                if (!tbody) return;
+                tbody.innerHTML = '';
+
+                members.forEach(m => {
+                    const statusBadge = m.verified ? '<span class="px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded-md font-bold text-[10px]">Verified</span>' : '<span class="px-2 py-1 bg-amber-500/20 text-amber-400 rounded-md font-bold text-[10px]">Pending Code Verification</span>';
+                    
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-800/40 transition">
+                            <td class="p-3.5 font-bold text-white">${m.username}</td>
+                            <td class="p-3.5 font-mono font-bold text-blue-400 tracking-wider">${m.code || 'N/A'}</td>
+                            <td class="p-3.5">${statusBadge}</td>
+                            <td class="p-3.5 capitalize font-bold text-amber-400">${m.role}</td>
+                            <td class="p-3.5 space-x-2">
+                                ${!m.verified ? `<button onclick="verifyMember('${m.id}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition">Verify</button>` : ''}
+                                <button onclick="toggleMemberRole('${m.id}', '${m.role}')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition">Toggle Role</button>
+                                <button onclick="deleteMember('${m.id}')" class="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg transition">Remove</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            });
+        }
+
+        async function verifyMember(id) {
+            await membersCollection.doc(id).update({ verified: true });
+        }
+
+        async function toggleMemberRole(id, current) {
+            const newRole = current === 'admin' ? 'viewer' : 'admin';
+            await membersCollection.doc(id).update({ role: newRole });
+        }
+
+        async function deleteMember(id) {
+            if (!confirm("Are you sure you want to remove this member?")) return;
+            await membersCollection.doc(id).delete();
+        }
+
+        // ==========================================
+        // 5. MASTER SHEET & FILTERING ENGINE
+        // ==========================================
+        function populateFilterDropdowns() {
+            const customerSet = new Set();
+            const lineSet = new Set();
+            const socCocSet = new Set();
+            const destSet = new Set();
+
+            masterData.forEach(row => {
+                if (row["Customer name"]) customerSet.add(row["Customer name"]);
+                if (row["Line"]) lineSet.add(row["Line"]);
+                if (row["SOC / COC"]) socCocSet.add(row["SOC / COC"]);
+                if (row["Final Destination"]) destSet.add(row["Final Destination"]);
+            });
+
+            fillSelect("filterCustomer", customerSet);
+            fillSelect("filterLine", lineSet);
+            fillSelect("filterSocCoc", socCocSet);
+            fillSelect("filterDestination", destSet);
+        }
+
+        function fillSelect(elementId, setValues) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            const currentVal = el.value;
+            const defaultText = el.options[0].text;
+            el.innerHTML = `<option value="">${defaultText}</option>`;
+            Array.from(setValues).sort().forEach(val => {
+                el.innerHTML += `<option value="${val}">${val}</option>`;
+            });
+            el.value = currentVal;
         }
 
         function applyFilters() {
-            const searchVal = document.getElementById('searchInput').value.toLowerCase().trim();
-            const custVal = document.getElementById('filterCustomer').value;
-            const lineVal = document.getElementById('filterLine').value;
-            const socVal = document.getElementById('filterSocCoc').value;
-            const destVal = document.getElementById('filterDestination').value;
-            const statusVal = document.getElementById('filterStatus').value;
-            const dateFromVal = document.getElementById('filterDateFrom').value;
+            const keyword = document.getElementById('searchInput').value.toLowerCase();
+            const cust = document.getElementById('filterCustomer').value;
+            const line = document.getElementById('filterLine').value;
+            const soc = document.getElementById('filterSocCoc').value;
+            const dest = document.getElementById('filterDestination').value;
+            const status = document.getElementById('filterStatus').value;
+            const dateFrom = document.getElementById('filterDateFrom').value;
 
             filteredData = masterData.filter(row => {
-                const matchesSearch = !searchVal || Object.values(row).some(v => v && v.toString().toLowerCase().includes(searchVal));
-                const matchesCust = !custVal || row['Customer name'] === custVal;
-                const matchesLine = !lineVal || row['Line'] === lineVal;
-                const matchesSoc = !socVal || row['SOC / COC'] === socVal;
-                const matchesDest = !destVal || row['Final Destination'] === destVal;
+                const matchesKeyword = !keyword || Object.values(row).some(val => String(val).toLowerCase().includes(keyword));
+                const matchesCust = !cust || row["Customer name"] === cust;
+                const matchesLine = !line || row["Line"] === line;
+                const matchesSoc = !soc || row["SOC / COC"] === soc;
+                const matchesDest = !dest || row["Final Destination"] === dest;
 
                 let matchesStatus = true;
-                if (statusVal === 'dxb') matchesStatus = !!row['Arrival DXB'] && row['Arrival DXB'] !== '-';
-                else if (statusVal === 'iran') matchesStatus = !!row['Arrival Iran'] && row['Arrival Iran'] !== '-';
-                else if (statusVal === 'exit') matchesStatus = !!row['Exit'] && row['Exit'] !== '-';
-                else if (statusVal === 'pending') matchesStatus = !row['Exit'] || row['Exit'] === '-';
+                if (status === 'dxb') matchesStatus = Boolean(row["Arrival DXB"]);
+                else if (status === 'iran') matchesStatus = Boolean(row["Arrival Iran"]);
+                else if (status === 'exit') matchesStatus = Boolean(row["Exit"]);
+                else if (status === 'pending') matchesStatus = !Boolean(row["Exit"]);
 
                 let matchesDate = true;
-                if (dateFromVal && row['Date of documents']) {
-                    matchesDate = new Date(row['Date of documents']) >= new Date(dateFromVal);
+                if (dateFrom && row["Date of documents"]) {
+                    matchesDate = row["Date of documents"] >= dateFrom;
                 }
 
-                return matchesSearch && matchesCust && matchesLine && matchesSoc && matchesDest && matchesStatus && matchesDate;
+                return matchesKeyword && matchesCust && matchesLine && matchesSoc && matchesDest && matchesStatus && matchesDate;
             });
 
+            if (sortCol) {
+                filteredData.sort((a, b) => {
+                    let valA = a[sortCol] || '';
+                    let valB = b[sortCol] || '';
+                    if (!isNaN(valA) && !isNaN(valB)) {
+                        valA = Number(valA);
+                        valB = Number(valB);
+                    }
+                    if (valA < valB) return sortAsc ? -1 : 1;
+                    if (valA > valB) return sortAsc ? 1 : -1;
+                    return 0;
+                });
+            }
+
             currentPage = 1;
-            renderTableHeader();
-            renderTable();
+            renderMasterTable();
         }
 
         function resetFilters() {
@@ -1380,233 +1313,171 @@
             applyFilters();
         }
 
-        // ==========================================
-        // 7. TABLE & PAGINATION RENDERING
-        // ==========================================
-        function renderTableHeader() {
-            const thead = document.getElementById('tableHeader');
-            let html = `<tr><th class="p-3.5 text-center sticky left-0 bg-[#0B1120] z-10 border-r border-slate-800">Action</th>`;
+        function renderMasterTable() {
+            const headerEl = document.getElementById('tableHeader');
+            const bodyEl = document.getElementById('tableBody');
+            const countEl = document.getElementById('record-count');
 
-            columns.forEach(col => {
-                if (visibleColumns.includes(col)) {
-                    const isSorted = sortCol === col;
-                    const sortIndicator = isSorted ? (sortAsc ? '▲' : '▼') : '↕';
-                    html += `
-                        <th onclick="sortByColumn('${col}')" class="p-3.5 cursor-pointer hover:bg-slate-800/80 transition">
-                            <div class="flex items-center space-x-1.5">
-                                <span>${col}</span>
-                                <span class="text-[10px] text-slate-500">${sortIndicator}</span>
-                            </div>
-                        </th>
-                    `;
-                }
+            countEl.textContent = filteredData.length;
+
+            let headerHTML = '<tr><th class="p-3.5 w-12 text-center">#</th>';
+            visibleColumns.forEach(col => {
+                headerHTML += `<th class="p-3.5 cursor-pointer hover:text-blue-400" onclick="sortMasterTable('${col}')">${col} ${sortCol === col ? (sortAsc ? '▲' : '▼') : ''}</th>`;
             });
-            html += `</tr>`;
-            thead.innerHTML = html;
+            headerHTML += '<th class="p-3.5 text-center">Actions</th></tr>';
+            headerEl.innerHTML = headerHTML;
+
+            const start = (currentPage - 1) * pageSize;
+            const end = start + Number(pageSize);
+            const pageRows = filteredData.slice(start, end);
+
+            bodyEl.innerHTML = '';
+            if (pageRows.length === 0) {
+                bodyEl.innerHTML = `<tr><td colspan="${visibleColumns.length + 2}" class="p-8 text-center text-slate-400">No matching container records found.</td></tr>`;
+                updatePaginationControls();
+                return;
+            }
+
+            pageRows.forEach((row, idx) => {
+                let rowHTML = `<tr class="hover:bg-slate-800/40 transition"><td class="p-3.5 text-center text-slate-500 font-bold">${start + idx + 1}</td>`;
+                visibleColumns.forEach(col => {
+                    let val = row[col] !== undefined ? row[col] : '';
+                    rowHTML += `<td class="p-3.5">${val}</td>`;
+                });
+                rowHTML += `
+                    <td class="p-3.5 text-center space-x-2">
+                        <button onclick="openModalForEdit('${row.docId}')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold transition">Edit</button>
+                        <button onclick="deleteContainerRecord('${row.docId}', '${row["Container number"]}')" class="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold transition">Delete</button>
+                    </td>
+                </tr>`;
+                bodyEl.innerHTML += rowHTML;
+            });
+
+            updatePaginationControls();
         }
 
-        function renderTable() {
-            const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = '';
-            document.getElementById('record-count').innerText = filteredData.length;
+        function sortMasterTable(col) {
+            if (sortCol === col) sortAsc = !sortAsc;
+            else { sortCol = col; sortAsc = true; }
+            applyFilters();
+        }
 
+        function updatePaginationControls() {
             const totalPages = Math.ceil(filteredData.length / pageSize) || 1;
             if (currentPage > totalPages) currentPage = totalPages;
-
-            const startIndex = (currentPage - 1) * pageSize;
-            const pageData = filteredData.slice(startIndex, startIndex + pageSize);
-
-            pageData.forEach((row) => {
-                const actualIndex = masterData.indexOf(row);
-                const containerNo = row['Container number'] || 'N/A';
-                const blNo = row['BL number'] || 'N/A';
-                const route = `${row['Port of Loading'] || 'POL'} ➔ ${row['Final Destination'] || 'POD'}`;
-                const statusText = row['Exit'] && row['Exit'] !== '-' ? 'Border Exit Completed' : (row['Arrival Iran'] && row['Arrival Iran'] !== '-' ? 'In Transit (Iran)' : 'Arrived DXB');
-
-                // Feature 1: WhatsApp Status Update Message formatting & wa.me link
-                const waMessage = encodeURIComponent(`*AZAD WATTAN CONTAINER STATUS UPDATE*\n\n*Container No:* ${containerNo}\n*BL No:* ${blNo}\n*Route:* ${route}\n*Current Status:* ${statusText}\n\nThank you for choosing Azad Wattan General Trading Co.`);
-                const waLink = `https://wa.me/?text=${waMessage}`;
-
-                const tr = document.createElement('tr');
-                tr.className = "border-b border-slate-800/60 hover:bg-slate-800/40 transition";
-                
-                let html = `
-                    <td class="p-2.5 text-center sticky left-0 bg-[#0B1120] z-10 border-r border-slate-800 whitespace-nowrap">
-                        <div class="flex items-center justify-center space-x-1.5">
-                            <a href="${waLink}" target="_blank" title="Send WhatsApp Status Update" class="p-1 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 rounded-lg transition">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
-                            </a>
-                            ${currentRole !== 'viewer' ? `<button onclick="openModalForEdit(${actualIndex})" class="p-1 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/30 rounded-lg transition" title="Edit Record">✏️</button>` : ''}
-                            ${currentRole === 'admin' ? `<button onclick="deleteRecord(${actualIndex})" class="p-1 bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/30 rounded-lg transition" title="Delete Record">🗑️</button>` : ''}
-                        </div>
-                    </td>
-                `;
-
-                columns.forEach(col => {
-                    if (visibleColumns.includes(col)) {
-                        let val = row[col] !== undefined && row[col] !== null ? row[col] : '-';
-                        html += `<td class="p-3.5">${val}</td>`;
-                    }
-                });
-                tr.innerHTML = html;
-                tbody.appendChild(tr);
-            });
-
-            document.getElementById('pageInfo').innerText = `Page ${currentPage} of ${totalPages}`;
+            document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
             document.getElementById('btnPrev').disabled = currentPage === 1;
             document.getElementById('btnNext').disabled = currentPage === totalPages;
         }
 
-        function changePageSize() {
-            pageSize = parseInt(document.getElementById('pageSizeSelect').value, 10);
-            currentPage = 1;
-            renderTable();
+        function nextPage() {
+            const totalPages = Math.ceil(filteredData.length / pageSize) || 1;
+            if (currentPage < totalPages) { currentPage++; renderMasterTable(); }
         }
 
         function prevPage() {
-            if (currentPage > 1) {
-                currentPage--;
-                renderTable();
-            }
+            if (currentPage > 1) { currentPage--; renderMasterTable(); }
         }
 
-        function nextPage() {
-            const totalPages = Math.ceil(filteredData.length / pageSize) || 1;
-            if (currentPage < totalPages) {
-                currentPage++;
-                renderTable();
-            }
+        function changePageSize() {
+            pageSize = document.getElementById('pageSizeSelect').value;
+            currentPage = 1;
+            renderMasterTable();
         }
 
         // ==========================================
-        // 8. DATA IMPORT & EXPORT (CSV & FEATURE 4: EXCEL .XLSX)
+        // 6. COLUMN TOGGLER ENGINE
         // ==========================================
-        function exportCSV() {
-            const csv = Papa.unparse(masterData);
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Azad_Wattan_Master_Sheet_${new Date().toISOString().slice(0, 10)}.csv`;
-            a.click();
-            URL.revokeObjectURL(url);
+        function toggleColumnMenu() {
+            document.getElementById('columnMenu').classList.toggle('hidden');
         }
 
-        // Feature 4: Excel (.xlsx) Multi-sheet Export via SheetJS
-        function exportExcelXLSX() {
-            if (!masterData.length) {
-                alert("No data available to export.");
-                return;
-            }
-
-            // Create Master Sheet workbook
-            const wb = XLSX.utils.book_new();
-            
-            // 1. Master Sheet Data worksheet
-            const wsMaster = XLSX.utils.json_to_sheet(masterData);
-            XLSX.utils.book_append_sheet(wb, wsMaster, "Master Sheet");
-
-            // 2. Expenses & Freight Invoicing worksheet summary data
-            const expenseData = masterData.map(r => ({
-                "Container No": r['Container number'] || '',
-                "Customer": r['Customer name'] || '',
-                "BL Weight (kg)": parseFloat(r['BL Weight']) || 0,
-                "Iran Weight (kg)": parseFloat(r['Iran Weight']) || 0,
-                "Estimated Freight ($)": (parseFloat(r['BL Weight']) || 0) * 0.12,
-                "Clearance Cost ($)": 350
-            }));
-            const wsExpenses = XLSX.utils.json_to_sheet(expenseData);
-            XLSX.utils.book_append_sheet(wb, wsExpenses, "Expenses & Freight");
-
-            // 3. Container Tracking Pipeline worksheet
-            const trackingData = masterData.map(r => ({
-                "Container No": r['Container number'] || '',
-                "BL Number": r['BL number'] || '',
-                "Customer": r['Customer name'] || '',
-                "Arrival DXB": r['Arrival DXB'] || '-',
-                "Arrival Iran": r['Arrival Iran'] || '-',
-                "Exit Date": r['Exit'] || '-'
-            }));
-            const wsTracking = XLSX.utils.json_to_sheet(trackingData);
-            XLSX.utils.book_append_sheet(wb, wsTracking, "Tracking Pipeline");
-
-            // Trigger file download
-            XLSX.writeFile(wb, `Azad_Wattan_Enterprise_Report_${new Date().toISOString().slice(0, 10)}.xlsx`);
-        }
-
-        async function importCSV(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            Papa.parse(file, {
-                header: true,
-                skipEmptyLines: true,
-                complete: async function(results) {
-                    const importedRows = results.data;
-                    const batch = db.batch();
-                    importedRows.forEach(row => {
-                        const newRef = containersCollection.doc();
-                        batch.set(newRef, sanitizeDataForFirestore(row));
-                    });
-                    await batch.commit();
-                    alert(`Successfully imported ${importedRows.length} records into Firebase Cloud!`);
-                    e.target.value = '';
-                }
+        function renderColumnCheckboxes() {
+            const container = document.getElementById('columnCheckboxes');
+            container.innerHTML = '';
+            columns.forEach(col => {
+                const isChecked = visibleColumns.includes(col);
+                container.innerHTML += `
+                    <label class="flex items-center space-x-2 cursor-pointer hover:text-white">
+                        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleSingleColumn('${col}')" class="rounded bg-slate-900 border-slate-700 text-blue-600 focus:ring-0">
+                        <span>${col}</span>
+                    </label>
+                `;
             });
         }
 
+        function toggleSingleColumn(col) {
+            if (visibleColumns.includes(col)) {
+                if (visibleColumns.length <= 1) { alert("At least one column must be visible."); renderColumnCheckboxes(); return; }
+                visibleColumns = visibleColumns.filter(c => c !== col);
+            } else {
+                visibleColumns.push(col);
+            }
+            renderMasterTable();
+        }
+
+        function selectAllColumns(select) {
+            visibleColumns = select ? [...columns] : [columns[0]];
+            renderColumnCheckboxes();
+            renderMasterTable();
+        }
+
         // ==========================================
-        // 9. MODAL EDIT/ADD FORM ENGINE WITH AUDIT LOGGING
+        // 7. CONTAINER ADD / EDIT / DELETE MODAL
         // ==========================================
         function openModalForAdd() {
-            document.getElementById('modalTitle').innerText = "Add New Container Record";
-            document.getElementById('modalSubtitle').innerText = "Fill out fields to add a new container shipment.";
-            document.getElementById('editIndex').value = "-1";
-            document.getElementById('recordForm').reset();
+            document.getElementById('editIndex').value = '';
+            document.getElementById('modalTitle').textContent = "Add New Container Record";
+            document.getElementById('modalSubtitle').textContent = "Enter new container particulars below.";
+            document.getElementById('saveRecordBtn').textContent = "Add Record";
             document.getElementById('auditTrailBox').classList.add('hidden');
+            document.getElementById('recordForm').reset();
             document.getElementById('modalOverlay').classList.remove('hidden');
         }
 
-        function openModalForEdit(index) {
-            const row = masterData[index];
-            document.getElementById('modalTitle').innerText = `Edit Container: ${row['Container number'] || ''}`;
-            document.getElementById('modalSubtitle').innerText = "Update master sheet values below.";
-            document.getElementById('editIndex').value = index;
+        function openModalForEdit(docId) {
+            const row = masterData.find(r => r.docId === docId);
+            if (!row) return;
 
-            document.getElementById('f_sno').value = row['S. No'] || '';
-            document.getElementById('f_doc_date').value = row['Date of documents'] || '';
-            document.getElementById('f_customer').value = row['Customer name'] || '';
-            document.getElementById('f_line').value = row['Line'] || '';
-            document.getElementById('f_bl').value = row['BL number'] || '';
-            document.getElementById('f_container').value = row['Container number'] || '';
-            document.getElementById('f_cross_container').value = row['Cross Stuffing Container No'] || '';
-            document.getElementById('f_type').value = row['Container type'] || '40 FT HC';
-            document.getElementById('f_soc_coc').value = row['SOC / COC'] || 'SOC';
-            document.getElementById('f_bl_weight').value = row['BL Weight'] || '';
-            document.getElementById('f_iran_weight').value = row['Iran Weight'] || '';
-            document.getElementById('f_consignee').value = row['Consignee'] || '';
-            document.getElementById('f_shipper').value = row['Shipper'] || '';
-            document.getElementById('f_item').value = row['Item'] || '';
-            document.getElementById('f_quantity').value = row['Quantity'] || '';
-            document.getElementById('f_pol').value = row['Port of Loading'] || '';
-            document.getElementById('f_pod').value = row['Port of Discharging'] || '';
-            document.getElementById('f_bl_date').value = row['BL date'] || '';
-            document.getElementById('f_arrival_dxb').value = row['Arrival DXB'] || '';
-            document.getElementById('f_jea_agent').value = row['Jebel Ali Agent'] || '';
-            document.getElementById('f_info_dxb').value = row['Info DXB'] || '';
-            document.getElementById('f_loading_dxb').value = row['Loading DXB'] || '';
-            document.getElementById('f_final_dest').value = row['Final Destination'] || '';
-            document.getElementById('f_iran_consignee').value = row['Iran consignee'] || '';
-            document.getElementById('f_arrival_iran').value = row['Arrival Iran'] || '';
-            document.getElementById('f_info_iran').value = row['Info Iran'] || '';
-            document.getElementById('f_loading_iran').value = row['Loading Iran'] || '';
-            document.getElementById('f_exit').value = row['Exit'] || '';
-            document.getElementById('f_afgh_agent').value = row['Jawaz / Afghanistan Agent'] || '';
-            document.getElementById('f_cpage').value = row['C/Page'] || '';
-
-            document.getElementById('auditUser').innerText = row._lastUpdatedBy || currentUsername || 'System';
-            document.getElementById('auditTime').innerText = row._lastUpdatedTime || new Date().toLocaleString();
+            document.getElementById('editIndex').value = docId;
+            document.getElementById('modalTitle').textContent = `Edit Container: ${row["Container number"] || ''}`;
+            document.getElementById('modalSubtitle').textContent = "Modify record details below.";
+            document.getElementById('saveRecordBtn').textContent = "Save Changes";
             document.getElementById('auditTrailBox').classList.remove('hidden');
+
+            document.getElementById('auditUser').textContent = row.lastUpdatedBy || 'System';
+            document.getElementById('auditTime').textContent = row.lastUpdatedTime || 'N/A';
+
+            document.getElementById('f_sno').value = row["S. No"] || '';
+            document.getElementById('f_doc_date').value = row["Date of documents"] || '';
+            document.getElementById('f_customer').value = row["Customer name"] || '';
+            document.getElementById('f_line').value = row["Line"] || '';
+            document.getElementById('f_bl').value = row["BL number"] || '';
+            document.getElementById('f_container').value = row["Container number"] || '';
+            document.getElementById('f_cross_container').value = row["Cross Stuffing Container No"] || '';
+            document.getElementById('f_type').value = row["Container type"] || '40 FT HC';
+            document.getElementById('f_soc_coc').value = row["SOC / COC"] || 'SOC';
+            document.getElementById('f_bl_weight').value = row["BL Weight"] || '';
+            document.getElementById('f_iran_weight').value = row["Iran Weight"] || '';
+            document.getElementById('f_consignee').value = row["Consignee"] || '';
+            document.getElementById('f_shipper').value = row["Shipper"] || '';
+            document.getElementById('f_item').value = row["Item"] || '';
+            document.getElementById('f_quantity').value = row["Quantity"] || '';
+            document.getElementById('f_pol').value = row["Port of Loading"] || '';
+            document.getElementById('f_pod').value = row["Port of Discharging"] || '';
+            document.getElementById('f_bl_date').value = row["BL date"] || '';
+            document.getElementById('f_arrival_dxb').value = row["Arrival DXB"] || '';
+            document.getElementById('f_jea_agent').value = row["Jebel Ali Agent"] || '';
+            document.getElementById('f_info_dxb').value = row["Info DXB"] || '';
+            document.getElementById('f_loading_dxb').value = row["Loading DXB"] || '';
+            document.getElementById('f_final_dest').value = row["Final Destination"] || '';
+            document.getElementById('f_iran_consignee').value = row["Iran consignee"] || '';
+            document.getElementById('f_arrival_iran').value = row["Arrival Iran"] || '';
+            document.getElementById('f_info_iran').value = row["Info Iran"] || '';
+            document.getElementById('f_loading_iran').value = row["Loading Iran"] || '';
+            document.getElementById('f_exit').value = row["Exit"] || '';
+            document.getElementById('f_afgh_agent').value = row["Jawaz / Afghanistan Agent"] || '';
+            document.getElementById('f_cpage').value = row["C/Page"] || '';
 
             document.getElementById('modalOverlay').classList.remove('hidden');
         }
@@ -1617,9 +1488,10 @@
 
         async function handleFormSubmit(e) {
             e.preventDefault();
-            const editIndex = parseInt(document.getElementById('editIndex').value, 10);
+            const docId = document.getElementById('editIndex').value;
+            const now = new Date().toLocaleString();
 
-            const rowData = {
+            const record = {
                 "S. No": document.getElementById('f_sno').value,
                 "Date of documents": document.getElementById('f_doc_date').value,
                 "Customer name": document.getElementById('f_customer').value,
@@ -1650,454 +1522,515 @@
                 "Exit": document.getElementById('f_exit').value,
                 "Jawaz / Afghanistan Agent": document.getElementById('f_afgh_agent').value,
                 "C/Page": document.getElementById('f_cpage').value,
-                "_lastUpdatedBy": currentUsername || 'System',
-                "_lastUpdatedTime": new Date().toLocaleString()
+                "lastUpdatedBy": currentUsername || 'System',
+                "lastUpdatedTime": now
             };
 
-            const containerNo = rowData["Container number"];
+            const sanitized = sanitizeDataForFirestore(record);
 
-            if (editIndex === -1) {
-                // Add new record & Log Audit Trail
-                await containersCollection.add(sanitizeDataForFirestore(rowData));
-                await logAuditAction("CREATE", containerNo, `New container added by ${currentUsername}`);
-                alert("Container record added successfully!");
+            if (docId) {
+                await containersCollection.doc(docId).set(sanitized);
+                await logAuditAction("Update", record["Container number"], `Updated container record details`);
             } else {
-                // Update existing record & Log Audit Trail
-                const docId = masterData[editIndex].docId;
-                await containersCollection.doc(docId).set(sanitizeDataForFirestore(rowData));
-                await logAuditAction("UPDATE", containerNo, `Container record modified by ${currentUsername}`);
-                alert("Container record updated successfully!");
+                await containersCollection.add(sanitized);
+                await logAuditAction("Add", record["Container number"], `Added new container record`);
             }
 
             closeModal();
         }
 
-        async function deleteRecord(index) {
-            const row = masterData[index];
-            const containerNo = row['Container number'] || 'N/A';
-            if (!confirm(`Are you sure you want to delete container record ${containerNo}?`)) return;
+        async function deleteContainerRecord(docId, containerNo) {
+            if (currentRole !== 'admin') { alert("Admin access required to delete records."); return; }
+            if (!confirm(`Are you sure you want to delete container ${containerNo}?`)) return;
+            await containersCollection.doc(docId).delete();
+            await logAuditAction("Delete", containerNo, `Deleted container record`);
+        }
 
-            if (row.docId) {
-                await containersCollection.doc(row.docId).delete();
-                await logAuditAction("DELETE", containerNo, `Container deleted by ${currentUsername}`);
-                alert("Container record deleted successfully.");
+        // ==========================================
+        // 8. CONTAINER TRACKING MODULE & AGENTS
+        // ==========================================
+        function switchTrackingHub(hub) {
+            currentTrackingHub = hub;
+            ['dubai', 'iran', 'afghanistan', 'cleared', 'ignored'].forEach(h => {
+                const btn = document.getElementById(`hubTab-${h}`);
+                if (!btn) return;
+                if (h === hub) {
+                    btn.className = "px-4 py-2.5 border-b-2 border-blue-500 text-blue-400 bg-slate-900/60 rounded-t-xl transition font-black";
+                } else {
+                    btn.className = "px-4 py-2.5 text-slate-400 hover:text-white rounded-t-xl transition font-bold";
+                }
+            });
+
+            const agents = customAgentsMap[hub] || [];
+            currentTrackingSubTab = agents[0] || 'All';
+            renderTrackingHub();
+        }
+
+        function promptAddAgent() {
+            if (['cleared', 'ignored'].includes(currentTrackingHub)) {
+                alert("Cannot add agents to Cleared or Ignored hubs.");
+                return;
+            }
+            const agentName = prompt(`Enter new agent name for ${currentTrackingHub.toUpperCase()} hub:`);
+            if (!agentName) return;
+            if (!customAgentsMap[currentTrackingHub]) customAgentsMap[currentTrackingHub] = [];
+            if (!customAgentsMap[currentTrackingHub].includes(agentName)) {
+                customAgentsMap[currentTrackingHub].push(agentName);
+                localStorage.setItem('azad_wattan_agents', JSON.stringify(customAgentsMap));
+                currentTrackingSubTab = agentName;
+                renderTrackingHub();
             }
         }
 
-        // ==========================================
-        // 10. TABS SWITCHING ENGINE
-        // ==========================================
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.className = "nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white rounded-xl transition";
-            });
-            const activeBtn = document.getElementById(`nav-${tabId}`);
-            if (activeBtn) {
-                activeBtn.className = "nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-bold rounded-xl bg-gradient-to-r from-blue-600/30 to-indigo-600/20 text-white border border-blue-500/40 shadow-[0_4px_12px_rgba(59,130,246,0.2)]";
-            }
-
-            if (tabId === 'analytics') renderAnalyticsCharts();
-            if (tabId === 'tracking') renderTrackingHub();
-            if (tabId === 'expenses') renderExpensesTable();
-            if (tabId === 'accounts') renderRegionalAccounts();
-        }
-
-        // ==========================================
-        // 11. ANALYTICS & CHARTS ENGINE
-        // ==========================================
-        function renderAnalyticsCharts() {
-            const destroyChart = (id) => {
-                if (chartInstances[id]) chartInstances[id].destroy();
-            };
-
-            // 1. Status Chart
-            destroyChart('chartStatus');
-            const arrivedDxbCount = masterData.filter(r => r['Arrival DXB'] && r['Arrival DXB'] !== '-').length;
-            const inIranCount = masterData.filter(r => r['Arrival Iran'] && r['Arrival Iran'] !== '-').length;
-            const exitedCount = masterData.filter(r => r['Exit'] && r['Exit'] !== '-').length;
-            const pendingCount = masterData.length - exitedCount;
-
-            const ctxStatus = document.getElementById('chartStatus').getContext('2d');
-            chartInstances['chartStatus'] = new Chart(ctxStatus, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Arrived DXB', 'In Transit (Iran)', 'Border Exit Completed', 'Pending Pipeline'],
-                    datasets: [{
-                        data: [arrivedDxbCount, inIranCount, exitedCount, pendingCount],
-                        backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#64748b'],
-                        borderWidth: 0
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 10 } } } } }
-            });
-
-            // 2. Customer Tonnage Chart
-            destroyChart('chartCustomerTonnage');
-            const customerTonnageMap = {};
-            masterData.forEach(r => {
-                const cust = r['Customer name'] || 'Unknown';
-                const wt = parseFloat(r['BL Weight']) || 0;
-                customerTonnageMap[cust] = (customerTonnageMap[cust] || 0) + wt;
-            });
-            const topCustomers = Object.entries(customerTonnageMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
-
-            const ctxCust = document.getElementById('chartCustomerTonnage').getContext('2d');
-            chartInstances['chartCustomerTonnage'] = new Chart(ctxCust, {
-                type: 'bar',
-                data: {
-                    labels: topCustomers.map(c => c[0]),
-                    datasets: [{
-                        label: 'Total BL Weight (kg)',
-                        data: topCustomers.map(c => c[1]),
-                        backgroundColor: '#3b82f6',
-                        borderRadius: 6
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: '#cbd5e1' } }, y: { ticks: { color: '#cbd5e1' } } }, plugins: { legend: { display: false } } }
-            });
-
-            // 3. Destination Chart
-            destroyChart('chartDestination');
-            const destMap = {};
-            masterData.forEach(r => {
-                const dest = r['Final Destination'] || 'Other';
-                destMap[dest] = (destMap[dest] || 0) + 1;
-            });
-            const topDest = Object.entries(destMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
-
-            const ctxDest = document.getElementById('chartDestination').getContext('2d');
-            chartInstances['chartDestination'] = new Chart(ctxDest, {
-                type: 'pie',
-                data: {
-                    labels: topDest.map(d => d[0]),
-                    datasets: [{
-                        data: topDest.map(d => d[1]),
-                        backgroundColor: ['#6366f1', '#3b82f6', '#14b8a6', '#f59e0b', '#ec4899'],
-                        borderWidth: 0
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 10 } } } } }
-            });
-
-            // 4. Equipment Type Chart
-            destroyChart('chartContainerType');
-            const typeMap = {};
-            masterData.forEach(r => {
-                const t = r['Container type'] || '40 FT HC';
-                typeMap[t] = (typeMap[t] || 0) + 1;
-            });
-
-            const ctxType = document.getElementById('chartContainerType').getContext('2d');
-            chartInstances['chartContainerType'] = new Chart(ctxType, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(typeMap),
-                    datasets: [{
-                        data: Object.values(typeMap),
-                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b'],
-                        borderWidth: 0
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 10 } } } } }
-            });
-        }
-
-// ==========================================
-// CONTAINER TRACKING ENGINE (Updated for Requirements 1-7)
-// ==========================================
-
-function switchTrackingHub(hub) {
-    currentTrackingHub = hub;
-    ['dubai', 'iran', 'afghanistan', 'cleared', 'ignored'].forEach(h => {
-        const btn = document.getElementById(`hubTab-${h}`);
-        if (btn) {
-            btn.className = h === hub ? "px-4 py-2.5 border-b-2 border-blue-500 text-blue-400 bg-slate-900/60 rounded-t-xl transition font-black" : "px-4 py-2.5 text-slate-400 hover:text-white rounded-t-xl transition font-bold";
-        }
-    });
-
-    const agents = customAgentsMap[currentTrackingHub] || ['General'];
-    currentTrackingSubTab = agents[0];
-    renderTrackingSubTabs();
-    renderTrackingTable();
-}
-
-function renderTrackingSubTabs() {
-    const container = document.getElementById('trackingSubTabs');
-    container.innerHTML = '';
-    const agents = customAgentsMap[currentTrackingHub] || ['General'];
-
-    agents.forEach(agent => {
-        const btn = document.createElement('button');
-        btn.className = agent === currentTrackingSubTab ? "px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold shadow" : "px-3 py-1.5 bg-slate-800/80 text-slate-300 hover:bg-slate-700 rounded-lg text-xs font-medium transition";
-        btn.innerText = agent;
-        btn.onclick = () => {
-            currentTrackingSubTab = agent;
-            renderTrackingSubTabs();
-            renderTrackingTable();
-        };
-        container.appendChild(btn);
-    });
-}
-
-function promptAddAgent() {
-    const newAgent = prompt(`Enter new agent name for ${currentTrackingHub.toUpperCase()} hub:`);
-    if (!newAgent || !newAgent.trim()) return;
-
-    if (!customAgentsMap[currentTrackingHub]) customAgentsMap[currentTrackingHub] = [];
-    customAgentsMap[currentTrackingHub].push(newAgent.trim());
-    localStorage.setItem('azad_wattan_agents', JSON.stringify(customAgentsMap));
-
-    currentTrackingSubTab = newAgent.trim();
-    renderTrackingSubTabs();
-    renderTrackingTable();
-}
-
-function renderTrackingTable() {
+        function renderTrackingHub() {
+    const subTabsEl = document.getElementById('trackingSubTabs');
     const tbody = document.getElementById('trackingTableBody');
-    tbody.innerHTML = '';
+    const searchVal = (document.getElementById('trackingSearch').value || '').toLowerCase();
+    const sortVal = document.getElementById('trackingSort').value;
 
-    let filtered = masterData.filter(r => {
-        const trackingStatus = r['TrackingStatus'] || 'active';
-        const loadingDxb = (r['Loading DXB'] || '').trim().toUpperCase();
-        const jebelAgent = (r['Jebel Ali Agent'] || '').trim();
-        const iranConsignee = (r['Iran consignee'] || '').trim();
-        const loadingIran = (r['Loading Iran'] || '').trim();
-        const afghAgent = (r['Jawaz / Afghanistan Agent'] || '').trim();
+    subTabsEl.innerHTML = '';
+    if (!['cleared', 'ignored'].includes(currentTrackingHub)) {
+        const agents = customAgentsMap[currentTrackingHub] || [];
+        agents.forEach(agent => {
+            const isActive = currentTrackingSubTab === agent;
+            subTabsEl.innerHTML += `
+                <button onclick="currentTrackingSubTab='${agent}'; renderTrackingHub()" class="px-3.5 py-1.5 rounded-lg transition ${isActive ? 'bg-blue-600 text-white font-black' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 font-semibold'}">
+                    ${agent}
+                </button>
+            `;
+        });
+    } else {
+        subTabsEl.innerHTML = `<span class="text-slate-400 italic px-2">System Automated Tab</span>`;
+    }
 
-        // Requirement 3: Ignored Container Tab filter
-        if (currentTrackingHub === 'ignored') {
-            return trackingStatus === 'ignored' || loadingDxb === 'IGNORED';
-        }
-        // Requirement 1: Cleared Container Tab filter
-        if (currentTrackingHub === 'cleared') {
-            return trackingStatus === 'cleared' || (r['Exit'] && r['Exit'] !== '-');
-        }
-        
-        // Exclude items already cleared or ignored from hub tabs
-        if (trackingStatus === 'cleared' || trackingStatus === 'ignored' || loadingDxb === 'IGNORED') {
-            return false;
-        }
+    let filtered = masterData.filter(row => {
+        const cont = String(row["Container number"] || '').toLowerCase();
+        const bl = String(row["BL number"] || '').toLowerCase();
+        const cust = String(row["Customer name"] || '').toLowerCase();
+        const matchesSearch = !searchVal || cont.includes(searchVal) || bl.includes(searchVal) || cust.includes(searchVal);
+        if (!matchesSearch) return false;
 
-        // Requirement 2: Dubai Tab logic
+        // Check Ignored Condition (Strict Isolation)
+        const isIgnoredRecord = Object.values(row).some(val => String(val).toLowerCase().includes('ignored'));
+        if (currentTrackingHub === 'ignored') return isIgnoredRecord;
+        if (isIgnoredRecord) return false; // Ignored records do not appear anywhere else
+
+        // Check Cleared Condition
+        const exitVal = String(row["Exit"] || '').trim();
+        const hasValidExit = exitVal !== '' && exitVal !== '-' && exitVal.toLowerCase() !== 'null';
+        const isExplicitlyCleared = String(row["Status"] || '').toLowerCase() === 'cleared';
+        const isClearedRecord = hasValidExit || isExplicitlyCleared;
+
+        if (currentTrackingHub === 'cleared') return isClearedRecord;
+        if (isClearedRecord) return false; // Cleared records are isolated from active pipeline
+
+        // Regional Hub Filtering & Exclusion Rules
         if (currentTrackingHub === 'dubai') {
-            const hasAgent = jebelAgent !== '' && jebelAgent !== '-';
-            const loadingDxbEmpty = !r['Loading DXB'] || r['Loading DXB'] === '-';
-            return hasAgent && loadingDxbEmpty && jebelAgent === currentTrackingSubTab;
-        }
+            const jAgent = String(row["Jebel Ali Agent"] || '').trim();
+            if (!jAgent) return false; // Must have an agent name
+            if (jAgent.toLowerCase() !== currentTrackingSubTab.toLowerCase()) return false;
 
-        // Requirement 4: Iran Tab logic
+            // Exclusion Rule: Loading DXB must be empty or '-'
+            const loadDxb = String(row["Loading DXB"] || '').trim();
+            if (loadDxb !== '' && loadDxb !== '-') return false;
+            return true;
+        } 
+        
         if (currentTrackingHub === 'iran') {
-            const hasConsignee = iranConsignee !== '' && iranConsignee !== '-';
-            const loadingIranEmpty = !loadingIran || loadingIran === '-';
-            const iranAgent = (r['Info Iran'] || 'Almas').trim();
-            return hasConsigness && loadingIranEmpty && iranAgent === currentTrackingSubTab;
-        }
+            const iranConsignee = String(row["Iran consignee"] || '').trim().toLowerCase();
+            if (!iranConsignee.includes(currentTrackingSubTab.toLowerCase())) return false;
 
-        // Requirement 5: Afghanistan Tab logic
+            // Exclusion Rule: Loading Iran must be empty or '-'
+            const loadIran = String(row["Loading Iran"] || '').trim();
+            if (loadIran !== '' && loadIran !== '-') return false;
+            return true;
+        } 
+        
         if (currentTrackingHub === 'afghanistan') {
-            const hasLoadingIran = loadingIran !== '' && loadingIran !== '-';
-            const hasAfghAgent = afghAgent !== '' && afghAgent !== '-';
-            return (hasLoadingIran || hasAfghAgent) && (afghAgent === currentTrackingSubTab || !afghAgent);
+            const aAgent = String(row["Jawaz / Afghanistan Agent"] || '').trim();
+            if (!aAgent || aAgent.toLowerCase() !== currentTrackingSubTab.toLowerCase()) return false;
+
+            // Exclusion Rule: Exit must be empty or '-'
+            if (exitVal !== '' && exitVal !== '-') return false;
+            return true;
         }
 
         return true;
     });
 
-    // Update KPI metrics summary cards
-    document.getElementById('track-total').innerText = masterData.length;
-    document.getElementById('track-dxb').innerText = masterData.filter(r => r['Arrival DXB'] && r['Arrival DXB'] !== '-').length;
-    document.getElementById('track-iran').innerText = masterData.filter(r => r['Arrival Iran'] && r['Arrival Iran'] !== '-').length;
-    document.getElementById('track-exit').innerText = masterData.filter(r => r['Exit'] && r['Exit'] !== '-').length;
+    // Sorting Logic
+    filtered.sort((a, b) => {
+        const dateA = new Date(a["Date of documents"] || 0);
+        const dateB = new Date(b["Date of documents"] || 0);
+        const contA = String(a["Container number"] || '');
+        const contB = String(b["Container number"] || '');
+
+        if (sortVal === 'date_desc') return dateB - dateA;
+        if (sortVal === 'date_asc') return dateA - dateB;
+        if (sortVal === 'container_asc') return contA.localeCompare(contB);
+        if (sortVal === 'container_desc') return contB.localeCompare(contA);
+        return 0;
+    });
+
+    // Update KPI Summary Counters
+    document.getElementById('track-total').textContent = masterData.filter(r => !String(r["Exit"] || '').trim() || String(r["Exit"] || '').trim() === '-').length;
+    document.getElementById('track-dxb').textContent = masterData.filter(r => Boolean(r["Arrival DXB"]) && (!r["Exit"] || r["Exit"] === '-')).length;
+    document.getElementById('track-iran').textContent = masterData.filter(r => Boolean(r["Arrival Iran"]) && (!r["Exit"] || r["Exit"] === '-')).length;
+    document.getElementById('track-exit').textContent = masterData.filter(r => {
+        const ex = String(r["Exit"] || '').trim();
+        return ex !== '' && ex !== '-' && ex.toLowerCase() !== 'null';
+    }).length;
+
+    tbody.innerHTML = '';
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400">No container records found in this tracking segment.</td></tr>`;
+        return;
+    }
 
     filtered.forEach(row => {
-        const actualIndex = masterData.indexOf(row);
-        const currentCustomStatus = row['CustomStatusBox'] || 'In Progress';
-        const tr = document.createElement('tr');
-        tr.className = "border-b border-slate-800/60 hover:bg-slate-800/40 transition";
-        
-        tr.innerHTML = `
-            <td class="p-3.5 font-bold text-white font-mono">${row['Container number'] || '-'}</td>
-            <td class="p-3.5">${row['BL number'] || '-'}</td>
-            <td class="p-3.5 font-semibold text-blue-400">${row['Customer name'] || '-'}</td>
-            <td class="p-3.5"><span class="px-2 py-1 bg-slate-800 rounded font-bold text-slate-300">${currentTrackingSubTab}</span></td>
-            <td class="p-3.5">${row['Date of documents'] || '-'}</td>
-            <td class="p-3.5 flex items-center space-x-2">
-                <!-- Requirement 7: Easily modifiable status box -->
-                <input type="text" id="statusBox_${actualIndex}" value="${currentCustomStatus}" onchange="updateStatusBoxValue(${actualIndex}, this.value)" placeholder="Enter status..." class="w-32 p-1.5 text-xs bg-slate-900 border border-slate-700 rounded-lg text-white font-semibold focus:outline-none focus:border-blue-500">
-                
-                <!-- Requirement 6 & 1: Cleared and Ignore buttons next to status box -->
-                <button onclick="setContainerTrackingStatus(${actualIndex}, 'cleared')" class="px-2.5 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 font-bold rounded-lg text-[10px] transition">Cleared</button>
-                <button onclick="setContainerTrackingStatus(${actualIndex}, 'ignored')" class="px-2.5 py-1.5 bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/30 font-bold rounded-lg text-[10px] transition">Ignore</button>
-            </td>
+        const docId = row.docId;
+        const currentStatus = row["Status"] || '';
+        const milestoneDate = row["Exit"] || row["Arrival Iran"] || row["Arrival DXB"] || '';
+
+        tbody.innerHTML += `
+            <tr class="hover:bg-slate-800/40 transition">
+                <td class="p-3.5 font-bold text-white">${row["Container number"] || 'N/A'}</td>
+                <td class="p-3.5 font-semibold text-blue-400">${row["BL number"] || 'N/A'}</td>
+                <td class="p-3.5">${row["Customer name"] || 'N/A'}</td>
+                <td class="p-3.5 font-bold text-amber-400">${currentTrackingSubTab}</td>
+                <td class="p-3.5">
+                    <input type="text" id="track_date_${docId}" value="${milestoneDate}" placeholder="dd.mm.yy" class="p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs w-32 font-mono">
+                </td>
+                <td class="p-3.5 flex items-center space-x-2">
+                    <input type="text" id="track_status_box_${docId}" value="${currentStatus}" placeholder="Type cleared / ignored..." class="p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs font-bold w-36">
+                    <button onclick="saveTrackingStatusAndMilestone('${docId}', '${row["Container number"]}')" class="px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg font-bold transition shadow-md btn-3d">Save</button>
+                </td>
+            </tr>
         `;
-        tbody.appendChild(tr);
     });
 }
 
-function updateStatusBoxValue(index, value) {
-    if (masterData[index]) {
-        masterData[index]['CustomStatusBox'] = value;
-        if (masterData[index].docId) {
-            containersCollection.doc(masterData[index].docId).update({ CustomStatusBox: value });
+async function saveTrackingStatusAndMilestone(docId, containerNo) {
+    const dateVal = document.getElementById(`track_date_${docId}`).value.trim();
+    const statusBoxVal = document.getElementById(`track_status_box_${docId}`).value.trim().toLowerCase();
+
+    let updatePayload = {};
+    if (dateVal) updatePayload["Exit"] = dateVal;
+    if (statusBoxVal) updatePayload["Status"] = statusBoxVal;
+
+    updatePayload["lastUpdatedBy"] = currentUsername || 'System';
+    updatePayload["lastUpdatedTime"] = new Date().toLocaleString();
+
+    await containersCollection.doc(docId).update(updatePayload);
+    await logAuditAction("Tracking Update", containerNo, `Updated tracking status to "${statusBoxVal}" and saved milestone date.`);
+    alert(`Container ${containerNo} successfully updated and shifted based on status rule!`);
+}
+
+
+        function generateTrackingPDF() {
+            const element = document.getElementById('trackingReportWrapper');
+            const opt = {
+                margin: 0.5,
+                filename: `Azad_Wattan_Tracking_${currentTrackingHub}_${currentTrackingSubTab}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
+            };
+            html2pdf().from(element).set(opt).save();
         }
-    }
-}
-
-async function setContainerTrackingStatus(index, status) {
-    const row = masterData[index];
-    if (!row) return;
-    
-    row['TrackingStatus'] = status;
-    if (status === 'cleared') {
-        row['Exit'] = new Date().toISOString().slice(0, 10);
-    }
-
-    if (row.docId) {
-        await containersCollection.doc(row.docId).update({ 
-            TrackingStatus: status,
-            Exit: row['Exit'] || '-'
-        });
-    }
-
-    renderTrackingTable();
-}
 
         // ==========================================
-        // FEATURE 3: ENHANCED FINANCIAL SUMMARY CARDS & EXPENSES TAB
+        // 9. EXPENSES & FREIGHT INVOICING ENGINE
         // ==========================================
-        function updateEnhancedFinancialCards() {
-            const activeContainersCount = masterData.filter(r => !r['Exit'] || r['Exit'] === '-').length;
-            
+        function renderExpensesTable() {
+            const tbody = document.getElementById('expensesTableBody');
+            if (!tbody) return;
+
+            tbody.innerHTML = '';
+            let totalActive = 0;
             let totalRevenue = 0;
             let totalExpenses = 0;
 
-            masterData.forEach(r => {
-                const wt = parseFloat(r['BL Weight']) || 0;
-                totalRevenue += wt * 0.12; // Estimated freight fee per kg
-                totalExpenses += 350; // Standard transit clearance cost per container
-            });
-
-            const activeEl = document.getElementById('exp-total-active');
-            const revEl = document.getElementById('exp-est-revenue');
-            const expEl = document.getElementById('exp-est-expenses');
-
-            if (activeEl) activeEl.innerText = activeContainersCount;
-            if (revEl) revEl.innerText = `$${totalRevenue.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
-            if (expEl) expEl.innerText = `$${totalExpenses.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
-        }
-
-        function renderExpensesTable() {
-            updateEnhancedFinancialCards();
-            const tbody = document.getElementById('expensesTableBody');
-            tbody.innerHTML = '';
-
             masterData.forEach(row => {
-                const wt = parseFloat(row['BL Weight']) || 0;
-                const iranWt = parseFloat(row['Iran Weight']) || 0;
-                const estFreight = wt * 0.12;
-                const clearanceCost = 350;
-                const netInvoiced = estFreight - clearanceCost;
+                if (row["Exit"]) return; // Exclude exited
+                totalActive++;
 
-                const tr = document.createElement('tr');
-                tr.className = "border-b border-slate-800/60 hover:bg-slate-800/40 transition";
-                tr.innerHTML = `
-                    <td class="p-3.5 font-bold text-white font-mono">${row['Container number'] || '-'}</td>
-                    <td class="p-3.5 text-blue-400 font-semibold">${row['Customer name'] || '-'}</td>
-                    <td class="p-3.5">${wt.toLocaleString()} kg</td>
-                    <td class="p-3.5">${iranWt.toLocaleString()} kg</td>
-                    <td class="p-3.5 font-bold text-emerald-400">$${estFreight.toFixed(2)}</td>
-                    <td class="p-3.5 text-amber-400">$${clearanceCost.toFixed(2)}</td>
-                    <td class="p-3.5 font-black text-white">$${netInvoiced.toFixed(2)}</td>
-                    <td class="p-3.5"><span class="px-2 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded font-black text-[10px]">Invoiced & Paid</span></td>
+                const blWt = Number(row["BL Weight"] || 0);
+                const estFreight = blWt * 0.08; // Example freight calculation per kg
+                const clearanceCost = 450; // Standard flat container fee
+
+                totalRevenue += estFreight;
+                totalExpenses += clearanceCost;
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-800/40 transition">
+                        <td class="p-3.5 font-bold text-white">${row["Container number"] || 'N/A'}</td>
+                        <td class="p-3.5">${row["Customer name"] || 'N/A'}</td>
+                        <td class="p-3.5">${blWt.toLocaleString()} kg</td>
+                        <td class="p-3.5">${Number(row["Iran Weight"] || 0).toLocaleString()} kg</td>
+                        <td class="p-3.5 font-bold text-emerald-400">$${estFreight.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td class="p-3.5 font-bold text-amber-400">$${clearanceCost.toLocaleString()}</td>
+                        <td class="p-3.5 font-bold text-white">$${(estFreight + clearanceCost).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td class="p-3.5">
+                            <span class="px-2.5 py-1 bg-amber-500/20 text-amber-400 rounded-lg font-bold text-[10px]">Pending Payment</span>
+                        </td>
+                    </tr>
                 `;
-                tbody.appendChild(tr);
             });
+
+            document.getElementById('exp-total-active').textContent = totalActive;
+            document.getElementById('exp-est-revenue').textContent = `$${totalRevenue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
+            document.getElementById('exp-est-expenses').textContent = `$${totalExpenses.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
         }
 
         // ==========================================
-        // 13. REGIONAL ACCOUNTS & STATEMENTS
+        // 10. REGIONAL ACCOUNTS MODULE
         // ==========================================
         function renderRegionalAccounts() {
-            document.getElementById('acc-dxb-count').innerText = masterData.filter(r => r['Arrival DXB'] && r['Arrival DXB'] !== '-').length;
-            document.getElementById('acc-iran-count').innerText = masterData.filter(r => r['Arrival Iran'] && r['Arrival Iran'] !== '-').length;
-            document.getElementById('acc-mahirud-count').innerText = masterData.filter(r => r['Final Destination'] && r['Final Destination'].toLowerCase().includes('mahirud')).length;
-            document.getElementById('acc-nimroz-count').innerText = masterData.filter(r => r['Final Destination'] && r['Final Destination'].toLowerCase().includes('nimroz')).length;
+            let dxbCount = 0;
+            let iranCount = 0;
+            let mahirudCount = 0;
+            let nimrozCount = 0;
+
+            masterData.forEach(row => {
+                if (row["Arrival DXB"]) dxbCount++;
+                if (row["Arrival Iran"]) iranCount++;
+                const dest = String(row["Final Destination"] || '').toLowerCase();
+                if (dest.includes('mahirud')) mahirudCount++;
+                if (dest.includes('nimroz') || dest.includes('kabul') || dest.includes('jalalabad')) nimrozCount++;
+            });
+
+            const dxbC = document.getElementById('acc-dxb-count');
+            const iranC = document.getElementById('acc-iran-count');
+            const mahC = document.getElementById('acc-mahirud-count');
+            const nimC = document.getElementById('acc-nimroz-count');
+
+            if (dxbC) dxbC.textContent = dxbCount;
+            if (iranC) iranC.textContent = iranCount;
+            if (mahC) mahC.textContent = mahirudCount;
+            if (nimC) nimC.textContent = nimrozCount;
         }
 
+        // ==========================================
+        // 11. CUSTOMER STATEMENTS & PDF GENERATION
+        // ==========================================
         function populateCustomerDropdown() {
             const select = document.getElementById('customerSelect');
             if (!select) return;
-            const customers = [...new Set(masterData.map(r => r['Customer name']))].filter(Boolean).sort();
+            const customers = new Set();
+            masterData.forEach(r => { if (r["Customer name"]) customers.add(r["Customer name"]); });
+            
+            const current = select.value;
             select.innerHTML = '<option value="">-- Select Customer --</option>';
-            customers.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c;
-                opt.innerText = c;
-                select.appendChild(opt);
+            Array.from(customers).sort().forEach(c => {
+                select.innerHTML += `<option value="${c}">${c}</option>`;
             });
+            select.value = current;
         }
 
         function renderCustomerStatement() {
             const customer = document.getElementById('customerSelect').value;
+            const nameEl = document.getElementById('stmtCustomerName');
+            const dateEl = document.getElementById('stmtDate');
+            const countEl = document.getElementById('stmtCount');
+            const blWtEl = document.getElementById('stmtBLWeight');
+            const iranWtEl = document.getElementById('stmtIranWeight');
             const tbody = document.getElementById('stmtTableBody');
-            document.getElementById('stmtDate').innerText = new Date().toLocaleDateString();
 
+            dateEl.textContent = new Date().toLocaleDateString();
             if (!customer) {
-                document.getElementById('stmtCustomerName').innerText = "Select a Customer";
-                document.getElementById('stmtCount').innerText = "0";
-                document.getElementById('stmtBLWeight').innerText = "0 kg";
-                document.getElementById('stmtIranWeight').innerText = "0 kg";
-                tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400">Select a customer above to render detailed statement.</td></tr>`;
+                nameEl.textContent = "Select a Customer";
+                countEl.textContent = "0";
+                blWtEl.textContent = "0 kg";
+                iranWtEl.textContent = "0 kg";
+                tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-400">Select a customer above to render detailed statement.</td></tr>';
                 return;
             }
 
-            document.getElementById('stmtCustomerName').innerText = customer;
-            const rows = masterData.filter(r => r['Customer name'] === customer);
+            nameEl.textContent = customer;
+            const rows = masterData.filter(r => r["Customer name"] === customer);
+            countEl.textContent = rows.length;
 
             let totalBL = 0;
             let totalIran = 0;
             tbody.innerHTML = '';
 
             rows.forEach((r, idx) => {
-                const blWt = parseFloat(r['BL Weight']) || 0;
-                const iranWt = parseFloat(r['Iran Weight']) || 0;
-                totalBL += blWt;
-                totalIran += iranWt;
+                const bl = Number(r["BL Weight"] || 0);
+                const iran = Number(r["Iran Weight"] || 0);
+                totalBL += bl;
+                totalIran += iran;
 
-                const tr = document.createElement('tr');
-                tr.className = "border-b border-slate-200";
-                tr.innerHTML = `
-                    <td class="p-3 font-bold">${idx + 1}</td>
-                    <td class="p-3 font-mono font-bold">${r['Container number'] || '-'}</td>
-                    <td class="p-3">${r['BL number'] || '-'}</td>
-                    <td class="p-3">${r['Item'] || '-'}</td>
-                    <td class="p-3">${blWt.toLocaleString()}</td>
-                    <td class="p-3">${iranWt.toLocaleString()}</td>
-                    <td class="p-3">${r['Final Destination'] || '-'}</td>
-                    <td class="p-3">${r['Exit'] || '-'}</td>
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="p-3 font-bold">${idx + 1}</td>
+                        <td class="p-3 font-bold">${r["Container number"] || ''}</td>
+                        <td class="p-3">${r["BL number"] || ''}</td>
+                        <td class="p-3">${r["Item"] || ''}</td>
+                        <td class="p-3 font-semibold text-blue-600">${bl.toLocaleString()} kg</td>
+                        <td class="p-3 font-semibold text-amber-600">${iran.toLocaleString()} kg</td>
+                        <td class="p-3">${r["Final Destination"] || ''}</td>
+                        <td class="p-3">${r["Exit"] || 'Pending'}</td>
+                    </tr>
                 `;
-                tbody.appendChild(tr);
             });
 
-            document.getElementById('stmtCount').innerText = rows.length;
-            document.getElementById('stmtBLWeight').innerText = totalBL.toLocaleString() + " kg";
-            document.getElementById('stmtIranWeight').innerText = totalIran.toLocaleString() + " kg";
+            blWtEl.textContent = `${totalBL.toLocaleString()} kg`;
+            iranWtEl.textContent = `${totalIran.toLocaleString()} kg`;
         }
 
         function downloadPDFStatement() {
+            const customer = document.getElementById('customerSelect').value;
+            if (!customer) { alert("Please select a customer first."); return; }
             const element = document.getElementById('statementCard');
-            const customer = document.getElementById('customerSelect').value || 'Customer_Statement';
             const opt = {
-                margin:       10,
-                filename:     `Azad_Wattan_Statement_${customer.replace(/\s+/g, '_')}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2 },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+                margin: 0.5,
+                filename: `Statement_${customer.replace(/\s+/g, '_')}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
             };
             html2pdf().from(element).set(opt).save();
+        }
+
+        // ==========================================
+        // 12. CSV & EXCEL EXPORT / IMPORT ENGINE
+        // ==========================================
+        function exportCSV() {
+            const csv = Papa.unparse(masterData);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", `Azad_Wattan_Master_Sheet_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function exportExcelXLSX() {
+            const worksheet = XLSX.utils.json_to_sheet(masterData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Master Sheet");
+            XLSX.writeFile(workbook, `Azad_Wattan_Master_Sheet_${new Date().toISOString().slice(0,10)}.xlsx`);
+        }
+
+        function importCSV(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: async function(results) {
+                    const imported = results.data;
+                    const batch = db.batch();
+                    imported.forEach(row => {
+                        const ref = containersCollection.doc();
+                        batch.set(ref, sanitizeDataForFirestore(row));
+                    });
+                    await batch.commit();
+                    alert(`Successfully imported ${imported.length} records into Firebase Firestore!`);
+                }
+            });
+        }
+
+        // ==========================================
+        // 13. ANALYTICS CHARTS ENGINE (Chart.js)
+        // ==========================================
+        function switchTab(tabId) {
+            ['master', 'analytics', 'tracking', 'expenses', 'accounts', 'statements', 'members', 'history', 'auditlogs'].forEach(t => {
+                const content = document.getElementById(`tab-${t}`);
+                const nav = document.getElementById(`nav-${t}`);
+                if (content) content.classList.add('hidden');
+                if (nav) {
+                    nav.className = "nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white rounded-xl transition";
+                }
+            });
+
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if (activeNav) {
+                activeNav.className = "nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-bold rounded-xl bg-gradient-to-r from-blue-600/35 to-indigo-600/25 text-white border border-blue-500/40 shadow-[0_4px_12px_rgba(59,130,246,0.2)]";
+            }
+
+            if (tabId === 'analytics') {
+                renderAnalyticsCharts();
+            }
+        }
+
+        function renderAnalyticsCharts() {
+            // 1. Status Chart
+            let arrivedCount = 0, transitCount = 0, exitCount = 0;
+            masterData.forEach(r => {
+                if (r["Exit"]) exitCount++;
+                else if (r["Arrival Iran"]) transitCount++;
+                else if (r["Arrival DXB"]) arrivedCount++;
+            });
+
+            renderDoughnutChart('chartStatus', ['Arrived DXB', 'In Transit (Iran)', 'Border Exit Completed'], [arrivedCount, transitCount, exitCount], ['#3b82f6', '#f59e0b', '#10b981']);
+
+            // 2. Customer Tonnage Chart (Top 5)
+            const customerTonnage = {};
+            masterData.forEach(r => {
+                const cust = r["Customer name"] || 'Unknown';
+                const wt = Number(r["BL Weight"] || 0);
+                customerTonnage[cust] = (customerTonnage[cust] || 0) + wt;
+            });
+            const sortedCust = Object.entries(customerTonnage).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            renderBarChart('chartCustomerTonnage', sortedCust.map(x => x[0]), sortedCust.map(x => x[1]), 'BL Weight (KG)', '#6366f1');
+
+            // 3. Destination Chart
+            const destinations = {};
+            masterData.forEach(r => {
+                const dest = r["Final Destination"] || 'Other';
+                destinations[dest] = (destinations[dest] || 0) + 1;
+            });
+            renderBarChart('chartDestination', Object.keys(destinations), Object.values(destinations), 'Container Count', '#38bdf8');
+
+            // 4. Container Equipment Type Share
+            const types = {};
+            masterData.forEach(r => {
+                const t = r["Container type"] || '40 FT HC';
+                types[t] = (types[t] || 0) + 1;
+            });
+            renderDoughnutChart('chartContainerType', Object.keys(types), Object.values(types), ['#ec4899', '#8b5cf6', '#06b6d4']);
+        }
+
+        function renderDoughnutChart(canvasId, labels, data, colors) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+            chartInstances[canvasId] = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{ data: data, backgroundColor: colors, borderWidth: 0 }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 10 } } } }
+                }
+            });
+        }
+
+        function renderBarChart(canvasId, labels, data, labelName, color) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+            chartInstances[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{ label: labelName, data: data, backgroundColor: color, borderRadius: 6 }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { color: '#cbd5e1', font: { size: 10 } }, grid: { display: false } },
+                        y: { ticks: { color: '#cbd5e1', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
         }
     </script>
 </body>
