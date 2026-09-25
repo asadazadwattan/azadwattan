@@ -446,48 +446,99 @@
             </div>
         </div>
 
-        <!-- TAB 4: EXPENSES & INVOICING -->
-        <div id="tab-expenses" class="tab-content p-8 hidden">
-            <div class="mb-6 flex justify-between items-center">
-                <div>
-                    <h2 class="text-xl font-black text-white tracking-wide">Expenses & Freight Invoicing</h2>
-                    <p class="text-xs text-slate-400 mt-0.5">Tonnage freight calculations, clearance fees, and invoice statuses.</p>
-                </div>
+<!-- TAB 4: EXPENSES & INVOICING -->
+<div id="tab-expenses" class="tab-content p-8 hidden">
+    <div class="mb-6 flex justify-between items-center flex-wrap gap-4">
+        <div>
+            <h2 class="text-xl font-black text-white tracking-wide">Expenses & Freight Invoicing</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Master data integration and dynamic editable financial metrics & calculations.</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button onclick="addExpenseRow()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition btn-3d shadow-lg shadow-blue-600/30">+ Add Row</button>
+            <button onclick="generateExpensesPDF()" class="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition btn-3d shadow-lg shadow-red-600/30">Generate PDF 📄</button>
+        </div>
+    </div>
+    
+    <!-- ENHANCED FINANCIAL SUMMARY KPI CARDS -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+        <div class="glass-card p-5 rounded-2xl shadow-xl border border-slate-800">
+            <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Total Active Containers</p>
+            <p id="exp-total-active" class="text-2xl font-black text-white mt-1">0</p>
+        </div>
+        <div class="glass-card p-5 rounded-2xl shadow-xl border border-slate-800">
+            <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Total Estimated Revenue</p>
+            <p id="exp-est-revenue" class="text-2xl font-black text-emerald-400 mt-1">$0</p>
+        </div>
+        <div class="glass-card p-5 rounded-2xl shadow-xl border border-slate-800">
+            <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Total Calculated Expenses</p>
+            <p id="exp-est-expenses" class="text-2xl font-black text-amber-400 mt-1">$0</p>
+        </div>
+    </div>
+
+    <!-- EXPENSES FILTER & SEARCH PANEL -->
+    <div class="glass-card p-4 rounded-2xl shadow-xl mb-6 space-y-3 border border-slate-800/80">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <h3 class="font-extrabold text-xs uppercase tracking-wider text-slate-300">Expenses Filter & Search</h3>
+            <button onclick="resetExpenseFilters()" class="text-xs text-blue-400 hover:text-blue-300 font-bold underline">Reset Filters</button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+                <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">Search Keyword</label>
+                <input type="text" id="expenseSearchInput" oninput="renderExpensesTable()" placeholder="Container / Customer / Ref..." class="w-full p-2.5 text-xs bg-slate-900/80 border border-slate-700/80 rounded-xl text-white focus:outline-none focus:border-blue-500">
             </div>
-            <!-- ENHANCED FINANCIAL SUMMARY KPI CARDS -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
-                <div class="glass-card p-5 rounded-2xl shadow-xl border border-slate-800">
-                    <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Total Active Containers in Transit</p>
-                    <p id="exp-total-active" class="text-2xl font-black text-white mt-1">0</p>
-                </div>
-                <div class="glass-card p-5 rounded-2xl shadow-xl border border-slate-800">
-                    <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Total Estimated Freight Revenue</p>
-                    <p id="exp-est-revenue" class="text-2xl font-black text-emerald-400 mt-1">$0</p>
-                </div>
-                <div class="glass-card p-5 rounded-2xl shadow-xl border border-slate-800">
-                    <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Total Outstanding/Pending Costs</p>
-                    <p id="exp-est-expenses" class="text-2xl font-black text-amber-400 mt-1">$0</p>
-                </div>
+            <div>
+                <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">Filter Customer</label>
+                <select id="expenseFilterCustomer" onchange="renderExpensesTable()" class="w-full p-2.5 text-xs bg-slate-900/80 border border-slate-700/80 rounded-xl text-white focus:outline-none focus:border-blue-500">
+                    <option value="">All Customers</option>
+                </select>
             </div>
-            <div class="glass-card rounded-2xl shadow-2xl overflow-x-auto table-scroll border border-slate-800">
-                <table class="w-full text-left text-xs text-slate-300 whitespace-nowrap">
-                    <thead class="bg-slate-900/90 border-b border-slate-800 font-bold text-slate-300">
-                        <tr>
-                            <th class="p-3.5">Container No</th>
-                            <th class="p-3.5">Customer</th>
-                            <th class="p-3.5">BL Weight (kg)</th>
-                            <th class="p-3.5">Iran Weight (kg)</th>
-                            <th class="p-3.5">Estimated Freight Fee</th>
-                            <th class="p-3.5">Transit & Clearance Cost</th>
-                            <th class="p-3.5">Net Invoiced</th>
-                            <th class="p-3.5">Payment Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="expensesTableBody" class="divide-y divide-slate-800/60"></tbody>
-                </table>
+            <div>
+                <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">Billing Month</label>
+                <select id="expenseFilterMonth" onchange="renderExpensesTable()" class="w-full p-2.5 text-xs bg-slate-900/80 border border-slate-700/80 rounded-xl text-white focus:outline-none focus:border-blue-500">
+                    <option value="">All Months</option>
+                </select>
             </div>
         </div>
+    </div>
 
+    <!-- 25 COLUMNS EXPENSES & INVOICING WRAPPER FOR PDF -->
+    <div id="expensesReportWrapper" class="glass-card rounded-2xl shadow-2xl overflow-hidden border border-slate-800">
+        <div class="overflow-x-auto table-scroll">
+            <table class="w-full text-left text-xs text-slate-300 whitespace-nowrap">
+                <thead class="bg-slate-900/90 border-b border-slate-800 font-bold text-slate-300 select-none">
+                    <tr>
+                        <th class="p-3.5">S. No</th>
+                        <th class="p-3.5">Date of documents</th>
+                        <th class="p-3.5">Customer name</th>
+                        <th class="p-3.5">Container number</th>
+                        <th class="p-3.5">Cross Stuffing Container No</th>
+                        <th class="p-3.5">Container size</th>
+                        <th class="p-3.5">Container type</th>
+                        <th class="p-3.5">SOC / COC</th>
+                        <th class="p-3.5">Iran Weight</th>
+                        <th class="p-3.5">Port of Loading</th>
+                        <th class="p-3.5">Final Destination</th>
+                        <th class="p-3.5">Iran consignee</th>
+                        <th class="p-3.5 text-amber-400">Iran Ref</th>
+                        <th class="p-3.5 text-amber-400">Billing month</th>
+                        <th class="p-3.5 text-amber-400">Khor Fakkan charges</th>
+                        <th class="p-3.5 text-amber-400">IGM Extra</th>
+                        <th class="p-3.5 text-amber-400">IGM Freight</th>
+                        <th class="p-3.5 text-amber-400">Iran Freight</th>
+                        <th class="p-3.5 text-amber-400">Iran Demurrage</th>
+                        <th class="p-3.5 text-amber-400">Nimroz</th>
+                        <th class="p-3.5 text-amber-400">Islamqala / Herat</th>
+                        <th class="p-3.5 text-amber-400">Other</th>
+                        <th class="p-3.5 text-emerald-400">Total Cost</th>
+                        <th class="p-3.5 text-emerald-400">Azad Freight</th>
+                        <th class="p-3.5 text-blue-400">Profit</th>
+                    </tr>
+                </thead>
+                <tbody id="expensesTableBody" class="divide-y divide-slate-800/60"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
         <!-- TAB 5: REGIONAL ACCOUNTS -->
         <div id="tab-accounts" class="tab-content p-8 hidden">
             <div class="mb-6">
@@ -842,6 +893,8 @@
 
         let sortCol = null;
         let sortAsc = true;
+        let expenseSortCol = null;
+        let expenseSortAsc = true;
         let currentPage = 1;
         let pageSize = 15;
         let chartInstances = {};
@@ -1583,149 +1636,137 @@
         }
 
         function renderTrackingHub() {
-    const subTabsEl = document.getElementById('trackingSubTabs');
-    const tbody = document.getElementById('trackingTableBody');
-    const searchVal = (document.getElementById('trackingSearch').value || '').toLowerCase();
-    const sortVal = document.getElementById('trackingSort').value;
+            const subTabsEl = document.getElementById('trackingSubTabs');
+            const tbody = document.getElementById('trackingTableBody');
+            const searchVal = (document.getElementById('trackingSearch').value || '').toLowerCase();
+            const sortVal = document.getElementById('trackingSort').value;
 
-    subTabsEl.innerHTML = '';
-    if (!['cleared', 'ignored'].includes(currentTrackingHub)) {
-        const agents = customAgentsMap[currentTrackingHub] || [];
-        agents.forEach(agent => {
-            const isActive = currentTrackingSubTab === agent;
-            subTabsEl.innerHTML += `
-                <button onclick="currentTrackingSubTab='${agent}'; renderTrackingHub()" class="px-3.5 py-1.5 rounded-lg transition ${isActive ? 'bg-blue-600 text-white font-black' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 font-semibold'}">
-                    ${agent}
-                </button>
-            `;
-        });
-    } else {
-        subTabsEl.innerHTML = `<span class="text-slate-400 italic px-2">System Automated Tab</span>`;
-    }
+            subTabsEl.innerHTML = '';
+            if (!['cleared', 'ignored'].includes(currentTrackingHub)) {
+                const agents = customAgentsMap[currentTrackingHub] || [];
+                agents.forEach(agent => {
+                    const isActive = currentTrackingSubTab === agent;
+                    subTabsEl.innerHTML += `
+                        <button onclick="currentTrackingSubTab='${agent}'; renderTrackingHub()" class="px-3.5 py-1.5 rounded-lg transition ${isActive ? 'bg-blue-600 text-white font-black' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 font-semibold'}">
+                            ${agent}
+                        </button>
+                    `;
+                });
+            } else {
+                subTabsEl.innerHTML = `<span class="text-slate-400 italic px-2">System Automated Tab</span>`;
+            }
 
-    let filtered = masterData.filter(row => {
-        const cont = String(row["Container number"] || '').toLowerCase();
-        const bl = String(row["BL number"] || '').toLowerCase();
-        const cust = String(row["Customer name"] || '').toLowerCase();
-        const matchesSearch = !searchVal || cont.includes(searchVal) || bl.includes(searchVal) || cust.includes(searchVal);
-        if (!matchesSearch) return false;
+            let filtered = masterData.filter(row => {
+                const cont = String(row["Container number"] || '').toLowerCase();
+                const bl = String(row["BL number"] || '').toLowerCase();
+                const cust = String(row["Customer name"] || '').toLowerCase();
+                const matchesSearch = !searchVal || cont.includes(searchVal) || bl.includes(searchVal) || cust.includes(searchVal);
+                if (!matchesSearch) return false;
 
-        // Check Ignored Condition (Strict Isolation)
-        const isIgnoredRecord = Object.values(row).some(val => String(val).toLowerCase().includes('ignored'));
-        if (currentTrackingHub === 'ignored') return isIgnoredRecord;
-        if (isIgnoredRecord) return false; // Ignored records do not appear anywhere else
+                const isIgnoredRecord = Object.values(row).some(val => String(val).toLowerCase().includes('ignored'));
+                if (currentTrackingHub === 'ignored') return isIgnoredRecord;
+                if (isIgnoredRecord) return false;
 
-        // Check Cleared Condition
-        const exitVal = String(row["Exit"] || '').trim();
-        const hasValidExit = exitVal !== '' && exitVal !== '-' && exitVal.toLowerCase() !== 'null';
-        const isExplicitlyCleared = String(row["Status"] || '').toLowerCase() === 'cleared';
-        const isClearedRecord = hasValidExit || isExplicitlyCleared;
+                const exitVal = String(row["Exit"] || '').trim();
+                const hasValidExit = exitVal !== '' && exitVal !== '-' && exitVal.toLowerCase() !== 'null';
+                const isExplicitlyCleared = String(row["Status"] || '').toLowerCase() === 'cleared';
+                const isClearedRecord = hasValidExit || isExplicitlyCleared;
 
-        if (currentTrackingHub === 'cleared') return isClearedRecord;
-        if (isClearedRecord) return false; // Cleared records are isolated from active pipeline
+                if (currentTrackingHub === 'cleared') return isClearedRecord;
+                if (isClearedRecord) return false;
 
-        // Regional Hub Filtering & Exclusion Rules
-        if (currentTrackingHub === 'dubai') {
-            const jAgent = String(row["Jebel Ali Agent"] || '').trim();
-            if (!jAgent) return false; // Must have an agent name
-            if (jAgent.toLowerCase() !== currentTrackingSubTab.toLowerCase()) return false;
+                if (currentTrackingHub === 'dubai') {
+                    const jAgent = String(row["Jebel Ali Agent"] || '').trim();
+                    if (!jAgent) return false;
+                    if (jAgent.toLowerCase() !== currentTrackingSubTab.toLowerCase()) return false;
+                    const loadDxb = String(row["Loading DXB"] || '').trim();
+                    if (loadDxb !== '' && loadDxb !== '-') return false;
+                    return true;
+                } 
+                
+                if (currentTrackingHub === 'iran') {
+                    const iranConsignee = String(row["Iran consignee"] || '').trim().toLowerCase();
+                    if (!iranConsignee.includes(currentTrackingSubTab.toLowerCase())) return false;
+                    const loadIran = String(row["Loading Iran"] || '').trim();
+                    if (loadIran !== '' && loadIran !== '-') return false;
+                    return true;
+                } 
+                
+                if (currentTrackingHub === 'afghanistan') {
+                    const aAgent = String(row["Jawaz / Afghanistan Agent"] || '').trim();
+                    if (!aAgent || aAgent.toLowerCase() !== currentTrackingSubTab.toLowerCase()) return false;
+                    if (exitVal !== '' && exitVal !== '-') return false;
+                    return true;
+                }
 
-            // Exclusion Rule: Loading DXB must be empty or '-'
-            const loadDxb = String(row["Loading DXB"] || '').trim();
-            if (loadDxb !== '' && loadDxb !== '-') return false;
-            return true;
-        } 
-        
-        if (currentTrackingHub === 'iran') {
-            const iranConsignee = String(row["Iran consignee"] || '').trim().toLowerCase();
-            if (!iranConsignee.includes(currentTrackingSubTab.toLowerCase())) return false;
+                return true;
+            });
 
-            // Exclusion Rule: Loading Iran must be empty or '-'
-            const loadIran = String(row["Loading Iran"] || '').trim();
-            if (loadIran !== '' && loadIran !== '-') return false;
-            return true;
-        } 
-        
-        if (currentTrackingHub === 'afghanistan') {
-            const aAgent = String(row["Jawaz / Afghanistan Agent"] || '').trim();
-            if (!aAgent || aAgent.toLowerCase() !== currentTrackingSubTab.toLowerCase()) return false;
+            filtered.sort((a, b) => {
+                const dateA = new Date(a["Date of documents"] || 0);
+                const dateB = new Date(b["Date of documents"] || 0);
+                const contA = String(a["Container number"] || '');
+                const contB = String(b["Container number"] || '');
 
-            // Exclusion Rule: Exit must be empty or '-'
-            if (exitVal !== '' && exitVal !== '-') return false;
-            return true;
+                if (sortVal === 'date_desc') return dateB - dateA;
+                if (sortVal === 'date_asc') return dateA - dateB;
+                if (sortVal === 'container_asc') return contA.localeCompare(contB);
+                if (sortVal === 'container_desc') return contB.localeCompare(contA);
+                return 0;
+            });
+
+            document.getElementById('track-total').textContent = masterData.filter(r => !String(r["Exit"] || '').trim() || String(r["Exit"] || '').trim() === '-').length;
+            document.getElementById('track-dxb').textContent = masterData.filter(r => Boolean(r["Arrival DXB"]) && (!r["Exit"] || r["Exit"] === '-')).length;
+            document.getElementById('track-iran').textContent = masterData.filter(r => Boolean(r["Arrival Iran"]) && (!r["Exit"] || r["Exit"] === '-')).length;
+            document.getElementById('track-exit').textContent = masterData.filter(r => {
+                const ex = String(r["Exit"] || '').trim();
+                return ex !== '' && ex !== '-' && ex.toLowerCase() !== 'null';
+            }).length;
+
+            tbody.innerHTML = '';
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400">No container records found in this tracking segment.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(row => {
+                const docId = row.docId;
+                const currentStatus = row["Status"] || '';
+                const milestoneDate = row["Exit"] || row["Arrival Iran"] || row["Arrival DXB"] || '';
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-800/40 transition">
+                        <td class="p-3.5 font-bold text-white">${row["Container number"] || 'N/A'}</td>
+                        <td class="p-3.5 font-semibold text-blue-400">${row["BL number"] || 'N/A'}</td>
+                        <td class="p-3.5">${row["Customer name"] || 'N/A'}</td>
+                        <td class="p-3.5 font-bold text-amber-400">${currentTrackingSubTab}</td>
+                        <td class="p-3.5">
+                            <input type="text" id="track_date_${docId}" value="${milestoneDate}" placeholder="dd.mm.yy" class="p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs w-32 font-mono">
+                        </td>
+                        <td class="p-3.5 flex items-center space-x-2">
+                            <input type="text" id="track_status_box_${docId}" value="${currentStatus}" placeholder="Type cleared / ignored..." class="p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs font-bold w-36">
+                            <button onclick="saveTrackingStatusAndMilestone('${docId}', '${row["Container number"]}')" class="px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg font-bold transition shadow-md btn-3d">Save</button>
+                        </td>
+                    </tr>
+                `;
+            });
         }
 
-        return true;
-    });
+        async function saveTrackingStatusAndMilestone(docId, containerNo) {
+            const dateVal = document.getElementById(`track_date_${docId}`).value.trim();
+            const statusBoxVal = document.getElementById(`track_status_box_${docId}`).value.trim().toLowerCase();
 
-    // Sorting Logic
-    filtered.sort((a, b) => {
-        const dateA = new Date(a["Date of documents"] || 0);
-        const dateB = new Date(b["Date of documents"] || 0);
-        const contA = String(a["Container number"] || '');
-        const contB = String(b["Container number"] || '');
+            let updatePayload = {};
+            if (dateVal) updatePayload["Exit"] = dateVal;
+            if (statusBoxVal) updatePayload["Status"] = statusBoxVal;
 
-        if (sortVal === 'date_desc') return dateB - dateA;
-        if (sortVal === 'date_asc') return dateA - dateB;
-        if (sortVal === 'container_asc') return contA.localeCompare(contB);
-        if (sortVal === 'container_desc') return contB.localeCompare(contA);
-        return 0;
-    });
+            updatePayload["lastUpdatedBy"] = currentUsername || 'System';
+            updatePayload["lastUpdatedTime"] = new Date().toLocaleString();
 
-    // Update KPI Summary Counters
-    document.getElementById('track-total').textContent = masterData.filter(r => !String(r["Exit"] || '').trim() || String(r["Exit"] || '').trim() === '-').length;
-    document.getElementById('track-dxb').textContent = masterData.filter(r => Boolean(r["Arrival DXB"]) && (!r["Exit"] || r["Exit"] === '-')).length;
-    document.getElementById('track-iran').textContent = masterData.filter(r => Boolean(r["Arrival Iran"]) && (!r["Exit"] || r["Exit"] === '-')).length;
-    document.getElementById('track-exit').textContent = masterData.filter(r => {
-        const ex = String(r["Exit"] || '').trim();
-        return ex !== '' && ex !== '-' && ex.toLowerCase() !== 'null';
-    }).length;
-
-    tbody.innerHTML = '';
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400">No container records found in this tracking segment.</td></tr>`;
-        return;
-    }
-
-    filtered.forEach(row => {
-        const docId = row.docId;
-        const currentStatus = row["Status"] || '';
-        const milestoneDate = row["Exit"] || row["Arrival Iran"] || row["Arrival DXB"] || '';
-
-        tbody.innerHTML += `
-            <tr class="hover:bg-slate-800/40 transition">
-                <td class="p-3.5 font-bold text-white">${row["Container number"] || 'N/A'}</td>
-                <td class="p-3.5 font-semibold text-blue-400">${row["BL number"] || 'N/A'}</td>
-                <td class="p-3.5">${row["Customer name"] || 'N/A'}</td>
-                <td class="p-3.5 font-bold text-amber-400">${currentTrackingSubTab}</td>
-                <td class="p-3.5">
-                    <input type="text" id="track_date_${docId}" value="${milestoneDate}" placeholder="dd.mm.yy" class="p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs w-32 font-mono">
-                </td>
-                <td class="p-3.5 flex items-center space-x-2">
-                    <input type="text" id="track_status_box_${docId}" value="${currentStatus}" placeholder="Type cleared / ignored..." class="p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs font-bold w-36">
-                    <button onclick="saveTrackingStatusAndMilestone('${docId}', '${row["Container number"]}')" class="px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg font-bold transition shadow-md btn-3d">Save</button>
-                </td>
-            </tr>
-        `;
-    });
-}
-
-async function saveTrackingStatusAndMilestone(docId, containerNo) {
-    const dateVal = document.getElementById(`track_date_${docId}`).value.trim();
-    const statusBoxVal = document.getElementById(`track_status_box_${docId}`).value.trim().toLowerCase();
-
-    let updatePayload = {};
-    if (dateVal) updatePayload["Exit"] = dateVal;
-    if (statusBoxVal) updatePayload["Status"] = statusBoxVal;
-
-    updatePayload["lastUpdatedBy"] = currentUsername || 'System';
-    updatePayload["lastUpdatedTime"] = new Date().toLocaleString();
-
-    await containersCollection.doc(docId).update(updatePayload);
-    await logAuditAction("Tracking Update", containerNo, `Updated tracking status to "${statusBoxVal}" and saved milestone date.`);
-    alert(`Container ${containerNo} successfully updated and shifted based on status rule!`);
-}
-
+            await containersCollection.doc(docId).update(updatePayload);
+            await logAuditAction("Tracking Update", containerNo, `Updated tracking status to "${statusBoxVal}" and saved milestone date.`);
+            alert(`Container ${containerNo} successfully updated and shifted based on status rule!`);
+        }
 
         function generateTrackingPDF() {
             const element = document.getElementById('trackingReportWrapper');
@@ -1739,50 +1780,158 @@ async function saveTrackingStatusAndMilestone(docId, containerNo) {
             html2pdf().from(element).set(opt).save();
         }
 
-        // ==========================================
-        // 9. EXPENSES & FREIGHT INVOICING ENGINE
-        // ==========================================
-        function renderExpensesTable() {
-            const tbody = document.getElementById('expensesTableBody');
-            if (!tbody) return;
+// ==========================================
+// EXPENSES & INVOICING ENGINE WITH LIVE CALCS
+// ==========================================
+function populateExpenseDropdowns() {
+    const customerSet = new Set();
+    const monthSet = new Set();
 
-            tbody.innerHTML = '';
-            let totalActive = 0;
-            let totalRevenue = 0;
-            let totalExpenses = 0;
+    masterData.forEach(row => {
+        if (row["Customer name"]) customerSet.add(row["Customer name"]);
+        if (row["Billing month"]) monthSet.add(row["Billing month"]);
+    });
 
-            masterData.forEach(row => {
-                if (row["Exit"]) return; // Exclude exited
-                totalActive++;
+    fillSelect("expenseFilterCustomer", customerSet);
+    fillSelect("expenseFilterMonth", monthSet);
+}
 
-                const blWt = Number(row["BL Weight"] || 0);
-                const estFreight = blWt * 0.08; // Example freight calculation per kg
-                const clearanceCost = 450; // Standard flat container fee
+function resetExpenseFilters() {
+    document.getElementById('expenseSearchInput').value = '';
+    document.getElementById('expenseFilterCustomer').value = '';
+    document.getElementById('expenseFilterMonth').value = '';
+    renderExpensesTable();
+}
 
-                totalRevenue += estFreight;
-                totalExpenses += clearanceCost;
+function renderExpensesTable() {
+    populateExpenseDropdowns();
+    const tbody = document.getElementById('expensesTableBody');
+    if (!tbody) return;
 
-                tbody.innerHTML += `
-                    <tr class="hover:bg-slate-800/40 transition">
-                        <td class="p-3.5 font-bold text-white">${row["Container number"] || 'N/A'}</td>
-                        <td class="p-3.5">${row["Customer name"] || 'N/A'}</td>
-                        <td class="p-3.5">${blWt.toLocaleString()} kg</td>
-                        <td class="p-3.5">${Number(row["Iran Weight"] || 0).toLocaleString()} kg</td>
-                        <td class="p-3.5 font-bold text-emerald-400">$${estFreight.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                        <td class="p-3.5 font-bold text-amber-400">$${clearanceCost.toLocaleString()}</td>
-                        <td class="p-3.5 font-bold text-white">$${(estFreight + clearanceCost).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                        <td class="p-3.5">
-                            <span class="px-2.5 py-1 bg-amber-500/20 text-amber-400 rounded-lg font-bold text-[10px]">Pending Payment</span>
-                        </td>
-                    </tr>
-                `;
-            });
+    const searchVal = (document.getElementById('expenseSearchInput').value || '').toLowerCase();
+    const filterCust = document.getElementById('expenseFilterCustomer').value;
+    const filterMonth = document.getElementById('expenseFilterMonth').value;
 
-            document.getElementById('exp-total-active').textContent = totalActive;
-            document.getElementById('exp-est-revenue').textContent = `$${totalRevenue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
-            document.getElementById('exp-est-expenses').textContent = `$${totalExpenses.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
-        }
+    let totalActive = masterData.length;
+    let totalRevenue = 0;
+    let totalExpenses = 0;
 
+    let rowsToDisplay = masterData.filter(row => {
+        const matchesSearch = !searchVal || Object.values(row).some(val => String(val).toLowerCase().includes(searchVal));
+        const matchesCust = !filterCust || row["Customer name"] === filterCust;
+        const matchesMonth = !filterMonth || row["Billing month"] === filterMonth;
+        return matchesSearch && matchesCust && matchesMonth;
+    });
+
+    tbody.innerHTML = '';
+    if (rowsToDisplay.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="25" class="p-8 text-center text-slate-400">No matching expense records found.</td></tr>`;
+        document.getElementById('exp-total-active').textContent = 0;
+        document.getElementById('exp-est-revenue').textContent = '$0';
+        document.getElementById('exp-est-expenses').textContent = '$0';
+        return;
+    }
+
+    rowsToDisplay.forEach((row, idx) => {
+        const docId = row.docId || idx;
+        
+        // Financial fields initialization with default 0
+        const khorFakkan = parseFloat(row["Khor Fakkan charges"] || 0);
+        const igmExtra = parseFloat(row["IGM Extra"] || 0);
+        const igmFreight = parseFloat(row["IGM Freight"] || 0);
+        const iranFreight = parseFloat(row["Iran Freight"] || 0);
+        const iranDemurrage = parseFloat(row["Iran Demurrage"] || 0);
+        const nimroz = parseFloat(row["Nimroz"] || 0);
+        const islamqala = parseFloat(row["Islamqala / Herat"] || 0);
+        const other = parseFloat(row["Other"] || 0);
+        const azadFreight = parseFloat(row["Azad Freight"] || 0);
+
+        const calcTotalCost = khorFakkan + igmExtra + igmFreight + iranFreight + iranDemurrage + nimroz + islamqala + other;
+        const calcProfit = azadFreight - calcTotalCost;
+
+        totalRevenue += azadFreight;
+        totalExpenses += calcTotalCost;
+
+        tbody.innerHTML += `
+            <tr class="hover:bg-slate-800/40 transition" id="exp_row_${docId}">
+                <td class="p-3.5 font-bold text-slate-400">${row["S. No"] || (idx + 1)}</td>
+                <td class="p-3.5">${row["Date of documents"] || ''}</td>
+                <td class="p-3.5 font-bold text-white">${row["Customer name"] || ''}</td>
+                <td class="p-3.5 font-mono text-blue-400">${row["Container number"] || ''}</td>
+                <td class="p-3.5">${row["Cross Stuffing Container No"] || ''}</td>
+                <td class="p-3.5">${row["Container size"] || row["Container type"] || ''}</td>
+                <td class="p-3.5">${row["Container type"] || ''}</td>
+                <td class="p-3.5">${row["SOC / COC"] || ''}</td>
+                <td class="p-3.5">${row["Iran Weight"] || ''}</td>
+                <td class="p-3.5">${row["Port of Loading"] || ''}</td>
+                <td class="p-3.5">${row["Final Destination"] || ''}</td>
+                <td class="p-3.5">${row["Iran consignee"] || ''}</td>
+                <td class="p-3.5"><input type="text" value="${row["Iran Ref"] || ''}" onchange="updateExpenseField('${docId}', 'Iran Ref', this.value)" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-white"></td>
+                <td class="p-3.5"><input type="text" value="${row["Billing month"] || ''}" onchange="updateExpenseField('${docId}', 'Billing month', this.value)" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-white"></td>
+                
+                <!-- Editable Financial Input Fields -->
+                <td class="p-3.5"><input type="number" step="any" value="${khorFakkan}" oninput="recalculateRow('${docId}')" id="kf_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
+                <td class="p-3.5"><input type="number" step="any" value="${igmExtra}" oninput="recalculateRow('${docId}')" id="ie_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
+                <td class="p-3.5"><input type="number" step="any" value="${igmFreight}" oninput="recalculateRow('${docId}')" id="if_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
+                <td class="p-3.5"><input type="number" step="any" value="${iranFreight}" oninput="recalculateRow('${docId}')" id="irf_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
+                <td class="p-3.5"><input type="number" step="any" value="${iranDemurrage}" oninput="recalculateRow('${docId}')" id="ird_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
+                <td class="p-3.5"><input type="number" step="any" value="${nimroz}" oninput="recalculateRow('${docId}')" id="nim_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
+                <td class="p-3.5"><input type="number" step="any" value="${islamqala}" oninput="recalculateRow('${docId}')" id="isl_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
+                <td class="p-3.5"><input type="number" step="any" value="${other}" oninput="recalculateRow('${docId}')" id="oth_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
+                
+                <!-- Dynamic Totals & Profit -->
+                <td class="p-3.5 font-bold text-emerald-400" id="tot_cost_${docId}">$${calcTotalCost.toFixed(2)}</td>
+                <td class="p-3.5"><input type="number" step="any" value="${azadFreight}" oninput="recalculateRow('${docId}')" id="azf_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-emerald-400 font-bold"></td>
+                <td class="p-3.5 font-black text-blue-400" id="tot_prof_${docId}">$${calcProfit.toFixed(2)}</td>
+            </tr>
+        `;
+    });
+
+    document.getElementById('exp-total-active').textContent = totalActive;
+    document.getElementById('exp-est-revenue').textContent = `$${totalRevenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    document.getElementById('exp-est-expenses').textContent = `$${totalExpenses.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+}
+
+function recalculateRow(docId) {
+    const kf = parseFloat(document.getElementById(`kf_${docId}`).value) || 0;
+    const ie = parseFloat(document.getElementById(`ie_${docId}`).value) || 0;
+    const ifg = parseFloat(document.getElementById(`if_${docId}`).value) || 0;
+    const irf = parseFloat(document.getElementById(`irf_${docId}`).value) || 0;
+    const ird = parseFloat(document.getElementById(`ird_${docId}`).value) || 0;
+    const nim = parseFloat(document.getElementById(`nim_${docId}`).value) || 0;
+    const isl = parseFloat(document.getElementById(`isl_${docId}`).value) || 0;
+    const oth = parseFloat(document.getElementById(`oth_${docId}`).value) || 0;
+    const azf = parseFloat(document.getElementById(`azf_${docId}`).value) || 0;
+
+    const totalCost = kf + ie + ifg + irf + ird + nim + isl + oth;
+    const profit = azf - totalCost;
+
+    document.getElementById(`tot_cost_${docId}`).textContent = `$${totalCost.toFixed(2)}`;
+    document.getElementById(`tot_prof_${docId}`).textContent = `$${profit.toFixed(2)}`;
+}
+
+async function updateExpenseField(docId, fieldName, value) {
+    const row = masterData.find(r => r.docId === docId);
+    if (!row) return;
+    row[fieldName] = value;
+    await containersCollection.doc(docId).update({ [fieldName]: value });
+}
+
+function addExpenseRow() {
+    openModalForAdd();
+}
+
+function generateExpensesPDF() {
+    const element = document.getElementById('expensesReportWrapper');
+    const opt = {
+        margin: 0.5,
+        filename: 'Azad_Wattan_Expenses_Invoicing.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
+    };
+    html2pdf().from(element).set(opt).save();
+}
         // ==========================================
         // 10. REGIONAL ACCOUNTS MODULE
         // ==========================================
@@ -1901,7 +2050,8 @@ async function saveTrackingStatusAndMilestone(docId, containerNo) {
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.setAttribute("download", `Azad_Wattan_Master_Sheet_${new Date().toISOString().slice(0,10)}.csv`);
+            link.download = `Azad_Wattan_Master_Data_${new Date().toISOString().slice(0,10)}.csv`;
+            link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -1910,99 +2060,89 @@ async function saveTrackingStatusAndMilestone(docId, containerNo) {
         function exportExcelXLSX() {
             const worksheet = XLSX.utils.json_to_sheet(masterData);
             const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Master Sheet");
-            XLSX.writeFile(workbook, `Azad_Wattan_Master_Sheet_${new Date().toISOString().slice(0,10)}.xlsx`);
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Master Database");
+            XLSX.writeFile(workbook, `Azad_Wattan_Master_Data_${new Date().toISOString().slice(0,10)}.xlsx`);
         }
 
-        function importCSV(e) {
-            const file = e.target.files[0];
+        function importCSV(event) {
+            const file = event.target.files[0];
             if (!file) return;
+
             Papa.parse(file, {
                 header: true,
                 skipEmptyLines: true,
                 complete: async function(results) {
                     const imported = results.data;
-                    const batch = db.batch();
-                    imported.forEach(row => {
-                        const ref = containersCollection.doc();
-                        batch.set(ref, sanitizeDataForFirestore(row));
-                    });
-                    await batch.commit();
-                    alert(`Successfully imported ${imported.length} records into Firebase Firestore!`);
+                    if (imported.length === 0) { alert("CSV file is empty."); return; }
+                    
+                    if (confirm(`Import ${imported.length} container records into Firestore database?`)) {
+                        for (let row of imported) {
+                            const sanitized = sanitizeDataForFirestore(row);
+                            await containersCollection.add(sanitized);
+                        }
+                        alert("CSV data successfully imported into Firestore database!");
+                    }
+                    event.target.value = '';
+                },
+                error: function(err) {
+                    alert("Error parsing CSV: " + err.message);
                 }
             });
         }
 
         // ==========================================
-        // 13. ANALYTICS CHARTS ENGINE (Chart.js)
+        // 13. SIDEBAR NAVIGATION SWITCHER
         // ==========================================
         function switchTab(tabId) {
-            ['master', 'analytics', 'tracking', 'expenses', 'accounts', 'statements', 'members', 'history', 'auditlogs'].forEach(t => {
-                const content = document.getElementById(`tab-${t}`);
-                const nav = document.getElementById(`nav-${t}`);
-                if (content) content.classList.add('hidden');
-                if (nav) {
-                    nav.className = "nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white rounded-xl transition";
-                }
-            });
-
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-            const activeNav = document.getElementById(`nav-${tabId}`);
-            if (activeNav) {
-                activeNav.className = "nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-bold rounded-xl bg-gradient-to-r from-blue-600/35 to-indigo-600/25 text-white border border-blue-500/40 shadow-[0_4px_12px_rgba(59,130,246,0.2)]";
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.className = "nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-white rounded-xl transition";
+            });
+
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            if (activeBtn) {
+                activeBtn.className = "nav-btn w-full text-left flex items-center px-4 py-3 text-xs font-bold rounded-xl bg-gradient-to-r from-blue-600/30 to-indigo-600/20 text-white border border-blue-500/40 shadow-[0_4px_12px_rgba(59,130,246,0.2)]";
             }
 
-            if (tabId === 'analytics') {
-                renderAnalyticsCharts();
-            }
+            if (tabId === 'analytics') renderAnalyticsCharts();
+            if (tabId === 'expenses') renderExpensesTable();
+            if (tabId === 'history') loadVisitorHistoryTable();
+            if (tabId === 'members') loadMembersTable();
         }
 
+        // ==========================================
+        // 14. ANALYTICS CHARTS ENGINE (CHART.JS)
+        // ==========================================
         function renderAnalyticsCharts() {
-            // 1. Status Chart
-            let arrivedCount = 0, transitCount = 0, exitCount = 0;
-            masterData.forEach(r => {
-                if (r["Exit"]) exitCount++;
-                else if (r["Arrival Iran"]) transitCount++;
-                else if (r["Arrival DXB"]) arrivedCount++;
-            });
-
-            renderDoughnutChart('chartStatus', ['Arrived DXB', 'In Transit (Iran)', 'Border Exit Completed'], [arrivedCount, transitCount, exitCount], ['#3b82f6', '#f59e0b', '#10b981']);
-
-            // 2. Customer Tonnage Chart (Top 5)
-            const customerTonnage = {};
-            masterData.forEach(r => {
-                const cust = r["Customer name"] || 'Unknown';
-                const wt = Number(r["BL Weight"] || 0);
-                customerTonnage[cust] = (customerTonnage[cust] || 0) + wt;
-            });
-            const sortedCust = Object.entries(customerTonnage).sort((a,b) => b[1] - a[1]).slice(0, 5);
-            renderBarChart('chartCustomerTonnage', sortedCust.map(x => x[0]), sortedCust.map(x => x[1]), 'BL Weight (KG)', '#6366f1');
-
-            // 3. Destination Chart
-            const destinations = {};
-            masterData.forEach(r => {
-                const dest = r["Final Destination"] || 'Other';
-                destinations[dest] = (destinations[dest] || 0) + 1;
-            });
-            renderBarChart('chartDestination', Object.keys(destinations), Object.values(destinations), 'Container Count', '#38bdf8');
-
-            // 4. Container Equipment Type Share
-            const types = {};
-            masterData.forEach(r => {
-                const t = r["Container type"] || '40 FT HC';
-                types[t] = (types[t] || 0) + 1;
-            });
-            renderDoughnutChart('chartContainerType', Object.keys(types), Object.values(types), ['#ec4899', '#8b5cf6', '#06b6d4']);
+            renderStatusChart();
+            renderCustomerTonnageChart();
+            renderDestinationChart();
+            renderContainerTypeChart();
         }
 
-        function renderDoughnutChart(canvasId, labels, data, colors) {
-            const ctx = document.getElementById(canvasId).getContext('2d');
-            if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
-            chartInstances[canvasId] = new Chart(ctx, {
+        function renderStatusChart() {
+            const ctx = document.getElementById('chartStatus').getContext('2d');
+            if (chartInstances.status) chartInstances.status.destroy();
+
+            let dxb = 0, iran = 0, exited = 0, pending = 0;
+            masterData.forEach(r => {
+                if (r["Exit"]) exited++;
+                else if (r["Arrival Iran"]) iran++;
+                else if (r["Arrival DXB"]) dxb++;
+                else pending++;
+            });
+
+            chartInstances.status = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: labels,
-                    datasets: [{ data: data, backgroundColor: colors, borderWidth: 0 }]
+                    labels: ['Arrived DXB', 'In Transit (Iran)', 'Border Exit', 'Pending Pipeline'],
+                    datasets: [{
+                        data: [dxb, iran, exited, pending],
+                        backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#64748b'],
+                        borderWidth: 0
+                    }]
                 },
                 options: {
                     responsive: true,
@@ -2012,14 +2152,31 @@ async function saveTrackingStatusAndMilestone(docId, containerNo) {
             });
         }
 
-        function renderBarChart(canvasId, labels, data, labelName, color) {
-            const ctx = document.getElementById(canvasId).getContext('2d');
-            if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
-            chartInstances[canvasId] = new Chart(ctx, {
+        function renderCustomerTonnageChart() {
+            const ctx = document.getElementById('chartCustomerTonnage').getContext('2d');
+            if (chartInstances.customer) chartInstances.customer.destroy();
+
+            const customerMap = {};
+            masterData.forEach(r => {
+                const cust = r["Customer name"] || 'Unknown';
+                const wt = Number(r["BL Weight"] || 0);
+                customerMap[cust] = (customerMap[cust] || 0) + wt;
+            });
+
+            const sorted = Object.entries(customerMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            const labels = sorted.map(s => s[0]);
+            const data = sorted.map(s => s[1]);
+
+            chartInstances.customer = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: labels,
-                    datasets: [{ label: labelName, data: data, backgroundColor: color, borderRadius: 6 }]
+                    datasets: [{
+                        label: 'Total BL Weight (KG)',
+                        data: data,
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 8
+                    }]
                 },
                 options: {
                     responsive: true,
@@ -2029,6 +2186,65 @@ async function saveTrackingStatusAndMilestone(docId, containerNo) {
                         y: { ticks: { color: '#cbd5e1', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
                     },
                     plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function renderDestinationChart() {
+            const ctx = document.getElementById('chartDestination').getContext('2d');
+            if (chartInstances.destination) chartInstances.destination.destroy();
+
+            const destMap = {};
+            masterData.forEach(r => {
+                const dest = r["Final Destination"] || 'Other';
+                destMap[dest] = (destMap[dest] || 0) + 1;
+            });
+
+            const labels = Object.keys(destMap);
+            const data = Object.values(destMap);
+
+            chartInstances.destination = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 10 } } } }
+                }
+            });
+        }
+
+        function renderContainerTypeChart() {
+            const ctx = document.getElementById('chartContainerType').getContext('2d');
+            if (chartInstances.type) chartInstances.type.destroy();
+
+            const typeMap = {};
+            masterData.forEach(r => {
+                const t = r["Container type"] || '40 FT HC';
+                typeMap[t] = (typeMap[t] || 0) + 1;
+            });
+
+            chartInstances.type = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(typeMap),
+                    datasets: [{
+                        data: Object.values(typeMap),
+                        backgroundColor: ['#6366f1', '#14b8a6', '#f43f5e'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 10 } } } }
                 }
             });
         }
