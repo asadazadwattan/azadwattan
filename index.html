@@ -1816,7 +1816,7 @@ function renderExpensesTable() {
     let totalRevenue = 0;
     let totalExpenses = 0;
 
-    let rowsToDisplay = masterData.filter(row => {
+    const rowsToDisplay = masterData.filter(row => {
         const matchesSearch = !searchVal || Object.values(row).some(val => String(val).toLowerCase().includes(searchVal));
         const matchesCust = !filterCust || row["Customer name"] === filterCust;
         const matchesMonth = !filterMonth || row["Billing month"] === filterMonth;
@@ -1834,7 +1834,7 @@ function renderExpensesTable() {
 
     rowsToDisplay.forEach((row, idx) => {
         const docId = row.docId || idx;
-        
+
         // Financial fields initialization with default 0
         const khorFakkan = parseFloat(row["Khor Fakkan charges"] || 0);
         const igmExtra = parseFloat(row["IGM Extra"] || 0);
@@ -1868,20 +1868,20 @@ function renderExpensesTable() {
                 <td class="p-3.5">${row["Iran consignee"] || ''}</td>
                 <td class="p-3.5"><input type="text" value="${row["Iran Ref"] || ''}" onchange="updateExpenseField('${docId}', 'Iran Ref', this.value)" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-white"></td>
                 <td class="p-3.5"><input type="text" value="${row["Billing month"] || ''}" onchange="updateExpenseField('${docId}', 'Billing month', this.value)" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-white"></td>
-                
-                <!-- Editable Financial Input Fields -->
-                <td class="p-3.5"><input type="number" step="any" value="${khorFakkan}" oninput="recalculateRow('${docId}')" id="kf_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
-                <td class="p-3.5"><input type="number" step="any" value="${igmExtra}" oninput="recalculateRow('${docId}')" id="ie_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
-                <td class="p-3.5"><input type="number" step="any" value="${igmFreight}" oninput="recalculateRow('${docId}')" id="if_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
-                <td class="p-3.5"><input type="number" step="any" value="${iranFreight}" oninput="recalculateRow('${docId}')" id="irf_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
-                <td class="p-3.5"><input type="number" step="any" value="${iranDemurrage}" oninput="recalculateRow('${docId}')" id="ird_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
-                <td class="p-3.5"><input type="number" step="any" value="${nimroz}" oninput="recalculateRow('${docId}')" id="nim_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
-                <td class="p-3.5"><input type="number" step="any" value="${islamqala}" oninput="recalculateRow('${docId}')" id="isl_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
-                <td class="p-3.5"><input type="number" step="any" value="${other}" oninput="recalculateRow('${docId}')" id="oth_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
-                
-                <!-- Dynamic Totals & Profit -->
+
+                <!-- Editable Financial Input Fields with Auto-Save -->
+                <td class="p-3.5"><input type="number" step="any" value="${khorFakkan}" oninput="recalculateRow('${docId}')" onchange="updateExpenseMetric('${docId}', 'Khor Fakkan charges', this.value)" id="kf_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
+                <td class="p-3.5"><input type="number" step="any" value="${igmExtra}" oninput="recalculateRow('${docId}')" onchange="updateExpenseMetric('${docId}', 'IGM Extra', this.value)" id="ie_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
+                <td class="p-3.5"><input type="number" step="any" value="${igmFreight}" oninput="recalculateRow('${docId}')" onchange="updateExpenseMetric('${docId}', 'IGM Freight', this.value)" id="if_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
+                <td class="p-3.5"><input type="number" step="any" value="${iranFreight}" oninput="recalculateRow('${docId}')" onchange="updateExpenseMetric('${docId}', 'Iran Freight', this.value)" id="irf_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
+                <td class="p-3.5"><input type="number" step="any" value="${iranDemurrage}" oninput="recalculateRow('${docId}')" onchange="updateExpenseMetric('${docId}', 'Iran Demurrage', this.value)" id="ird_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
+                <td class="p-3.5"><input type="number" step="any" value="${nimroz}" oninput="recalculateRow('${docId}')" onchange="updateExpenseMetric('${docId}', 'Nimroz', this.value)" id="nim_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
+                <td class="p-3.5"><input type="number" step="any" value="${islamqala}" oninput="recalculateRow('${docId}')" onchange="updateExpenseMetric('${docId}', 'Islamqala / Herat', this.value)" id="isl_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
+                <td class="p-3.5"><input type="number" step="any" value="${other}" oninput="recalculateRow('${docId}')" onchange="updateExpenseMetric('${docId}', 'Other', this.value)" id="oth_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-amber-400 font-bold"></td>
+
+                <!-- Total Cost & Azad Freight -->
                 <td class="p-3.5 font-bold text-emerald-400" id="tot_cost_${docId}">$${calcTotalCost.toFixed(2)}</td>
-                <td class="p-3.5"><input type="number" step="any" value="${azadFreight}" oninput="recalculateRow('${docId}')" id="azf_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-emerald-400 font-bold"></td>
+                <td class="p-3.5"><input type="number" step="any" value="${azadFreight}" oninput="recalculateRow('${docId}')" onchange="updateExpenseMetric('${docId}', 'Azad Freight', this.value)" id="azf_${docId}" class="w-24 p-1.5 bg-slate-900 border border-slate-700 rounded text-xs text-emerald-400 font-bold"></td>
                 <td class="p-3.5 font-black text-blue-400" id="tot_prof_${docId}">$${calcProfit.toFixed(2)}</td>
             </tr>
         `;
@@ -1893,28 +1893,69 @@ function renderExpensesTable() {
 }
 
 function recalculateRow(docId) {
-    const kf = parseFloat(document.getElementById(`kf_${docId}`).value) || 0;
-    const ie = parseFloat(document.getElementById(`ie_${docId}`).value) || 0;
-    const ifg = parseFloat(document.getElementById(`if_${docId}`).value) || 0;
-    const irf = parseFloat(document.getElementById(`irf_${docId}`).value) || 0;
-    const ird = parseFloat(document.getElementById(`ird_${docId}`).value) || 0;
-    const nim = parseFloat(document.getElementById(`nim_${docId}`).value) || 0;
-    const isl = parseFloat(document.getElementById(`isl_${docId}`).value) || 0;
-    const oth = parseFloat(document.getElementById(`oth_${docId}`).value) || 0;
-    const azf = parseFloat(document.getElementById(`azf_${docId}`).value) || 0;
+    const getNumber = (id) => {
+        const element = document.getElementById(id);
+        return Number.parseFloat(element ? element.value : '') || 0;
+    };
+
+    const kf = getNumber(`kf_${docId}`);
+    const ie = getNumber(`ie_${docId}`);
+    const ifg = getNumber(`if_${docId}`);
+    const irf = getNumber(`irf_${docId}`);
+    const ird = getNumber(`ird_${docId}`);
+    const nim = getNumber(`nim_${docId}`);
+    const isl = getNumber(`isl_${docId}`);
+    const oth = getNumber(`oth_${docId}`);
+    const azf = getNumber(`azf_${docId}`);
 
     const totalCost = kf + ie + ifg + irf + ird + nim + isl + oth;
     const profit = azf - totalCost;
 
-    document.getElementById(`tot_cost_${docId}`).textContent = `$${totalCost.toFixed(2)}`;
-    document.getElementById(`tot_prof_${docId}`).textContent = `$${profit.toFixed(2)}`;
+    const costEl = document.getElementById(`tot_cost_${docId}`);
+    const profitEl = document.getElementById(`tot_prof_${docId}`);
+
+    if (costEl) costEl.textContent = `$${totalCost.toFixed(2)}`;
+    if (profitEl) profitEl.textContent = `$${profit.toFixed(2)}`;
+}
+
+async function updateExpenseMetric(docId, fieldName, value) {
+    const numericValue = Number.parseFloat(value);
+    const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
+
+    // 1. Update local masterData array so state is retained
+    const row = masterData.find(r => r.docId === docId);
+    if (row) {
+        row[fieldName] = safeValue;
+    }
+
+    // 2. Persist update to Firebase Firestore
+    try {
+        if (typeof containersCollection !== 'undefined' && containersCollection && typeof containersCollection.doc === 'function') {
+            await containersCollection.doc(docId).update({
+                [fieldName]: safeValue
+            });
+            console.log(`Saved ${fieldName}: ${safeValue} for doc ${docId}`);
+        }
+    } catch (error) {
+        console.error('Error saving expense metric to database:', error);
+    }
 }
 
 async function updateExpenseField(docId, fieldName, value) {
     const row = masterData.find(r => r.docId === docId);
     if (!row) return;
+
     row[fieldName] = value;
-    await containersCollection.doc(docId).update({ [fieldName]: value });
+    const update = {};
+    update[fieldName] = value;
+
+    try {
+        if (typeof containersCollection !== 'undefined' && containersCollection && typeof containersCollection.doc === 'function') {
+            await containersCollection.doc(docId).update(update);
+        }
+    } catch (error) {
+        console.error('Error saving expense field to database:', error);
+    }
 }
 
 function addExpenseRow() {
