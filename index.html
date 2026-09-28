@@ -977,6 +977,7 @@
                     <select id="trackingSort" onchange="renderTrackingHub()" class="p-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-white">
                         <option value="date_desc">Sort: Date (Newest)</option>
                         <option value="date_asc">Sort: Date (Oldest)</option>
+                        <option value="age_desc">Sort: Hub Age (Longest)</option>
                         <option value="container_asc">Sort: Container ID (A-Z)</option>
                         <option value="container_desc">Sort: Container ID (Z-A)</option>
                     </select>
@@ -990,6 +991,7 @@
                 <button onclick="switchTrackingHub('dubai')" id="hubTab-dubai" class="px-4 py-2.5 border-b-2 border-blue-500 text-blue-400 bg-slate-900/60 rounded-t-xl transition font-black">Dubai Hub</button>
                 <button onclick="switchTrackingHub('iran')" id="hubTab-iran" class="px-4 py-2.5 text-slate-400 hover:text-white rounded-t-xl transition font-bold">Iran Hub</button>
                 <button onclick="switchTrackingHub('afghanistan')" id="hubTab-afghanistan" class="px-4 py-2.5 text-slate-400 hover:text-white rounded-t-xl transition font-bold">Afghanistan Hub</button>
+                <button onclick="switchTrackingHub('unassigned')" id="hubTab-unassigned" class="px-4 py-2.5 text-slate-400 hover:text-white rounded-t-xl transition font-bold">Unassigned</button>
                 <button onclick="switchTrackingHub('cleared')" id="hubTab-cleared" class="px-4 py-2.5 text-slate-400 hover:text-white rounded-t-xl transition font-bold">Cleared Container</button>
                 <button onclick="switchTrackingHub('ignored')" id="hubTab-ignored" class="px-4 py-2.5 text-slate-400 hover:text-white rounded-t-xl transition font-bold">Ignored Containers</button>
             </div>
@@ -1032,14 +1034,32 @@
                                 <th class="p-3.5">BL Number</th>
                                 <th class="p-3.5">Customer</th>
                                 <th class="p-3.5">Active Hub / Agent</th>
-                                <th class="p-3.5">Milestone Date (dd.mm.yy)</th>
-                                <th class="p-3.5">Status & Save Action</th>
+                                <th id="trackingMilestoneHeader" class="p-3.5">Milestone Date</th>
+                                <th class="p-3.5">Days at Hub</th>
+                                <th class="p-3.5">Status / Assignment</th>
+                                <th class="p-3.5">History / Save</th>
                             </tr>
                         </thead>
                         <tbody id="trackingTableBody" class="divide-y divide-slate-800/60"></tbody>
                     </table>
                 </div>
             </div>
+        </div>
+
+        <div id="trackingTimelineOverlay" class="fixed inset-0 hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4 z-[60]" role="dialog" aria-modal="true" aria-labelledby="trackingTimelineTitle">
+            <section class="glass-card w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl border border-slate-700 p-6">
+                <div class="flex items-start justify-between gap-4 border-b border-slate-700 pb-4">
+                    <div>
+                        <h2 id="trackingTimelineTitle" class="text-lg font-black text-white">Container timeline</h2>
+                        <p id="trackingTimelineSubtitle" class="mt-1 text-xs text-slate-400"></p>
+                    </div>
+                    <button onclick="closeTrackingTimeline()" aria-label="Close timeline" class="text-slate-400 hover:text-white text-xl">&times;</button>
+                </div>
+                <ol id="trackingTimelineList" class="mt-5 space-y-3"></ol>
+                <div class="flex justify-end mt-5">
+                    <button onclick="closeTrackingTimeline()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold">Close</button>
+                </div>
+            </section>
         </div>
 
 <!-- TAB 4: EXPENSES & INVOICING -->
@@ -1761,6 +1781,12 @@
             dubai: ['Interglobe'],
             iran: ['Almas', 'Artiman'],
             afghanistan: ['Gulbadin', 'Kaleem Ullah', 'Niamat Ullah', 'Asadullah Herat', 'Asad Afghan Farah', 'Pashtoon Yar', 'Ahmad Ullah']
+        };
+
+        const trackingStageConfig = {
+            dubai: { label: 'Dubai arrival', dateField: 'Arrival DXB', assignmentField: 'Jebel Ali Agent', assignmentLabel: 'Dubai agent' },
+            iran: { label: 'Iran arrival', dateField: 'Arrival Iran', assignmentField: 'Iran consignee', assignmentLabel: 'Iran consignee / agent' },
+            afghanistan: { label: 'Border exit', dateField: 'Exit', assignmentField: 'Jawaz / Afghanistan Agent', assignmentLabel: 'Afghanistan agent' }
         };
 
         const savedAgents = localStorage.getItem('azad_wattan_agents');
@@ -2949,9 +2975,49 @@
         // ==========================================
         // 8. CONTAINER TRACKING MODULE & AGENTS
         // ==========================================
+        function isTrackingValuePresent(value) {
+            const normalized = safeText(value).toLowerCase();
+            return normalized !== '' && !['-', 'null', 'tba', 'n/a'].includes(normalized);
+        }
+
+        function isTrackingIgnoredRecord(row) {
+            if (safeText(row['Status']).toLowerCase() === 'ignored') return true;
+            return Object.values(row).some(value => safeText(value).toLowerCase() === 'ignored');
+        }
+
+        function isTrackingClearedRecord(row) {
+            return isTrackingValuePresent(row['Exit']) || safeText(row['Status']).toLowerCase() === 'cleared';
+        }
+
+        function getNextTrackingAssignment(row) {
+            if (!isTrackingValuePresent(row['Loading DXB'])) {
+                return isTrackingValuePresent(row['Jebel Ali Agent']) ? null : { hub: 'dubai', ...trackingStageConfig.dubai };
+            }
+            if (!isTrackingValuePresent(row['Loading Iran'])) {
+                return isTrackingValuePresent(row['Iran consignee']) ? null : { hub: 'iran', ...trackingStageConfig.iran };
+            }
+            if (!isTrackingClearedRecord(row)) {
+                return isTrackingValuePresent(row['Jawaz / Afghanistan Agent']) ? null : { hub: 'afghanistan', ...trackingStageConfig.afghanistan };
+            }
+            return null;
+        }
+
+        function getTrackingAgeDays(row, hub) {
+            const stage = trackingStageConfig[hub];
+            if (!stage) return null;
+
+            const events = Array.isArray(row.trackingEvents) ? row.trackingEvents : [];
+            const latestEvent = events
+                .filter(event => event && event.hub === hub && event.at && Number.isFinite(Date.parse(event.at)))
+                .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
+            const timestamp = latestEvent ? Date.parse(latestEvent.at) : parseMasterDate(row[stage.dateField]);
+            if (!Number.isFinite(timestamp)) return null;
+            return Math.max(0, Math.floor((Date.now() - timestamp) / 86400000));
+        }
+
         function switchTrackingHub(hub) {
             currentTrackingHub = hub;
-            ['dubai', 'iran', 'afghanistan', 'cleared', 'ignored'].forEach(h => {
+            ['dubai', 'iran', 'afghanistan', 'unassigned', 'cleared', 'ignored'].forEach(h => {
                 const btn = document.getElementById(`hubTab-${h}`);
                 if (!btn) return;
                 if (h === hub) {
@@ -2962,13 +3028,13 @@
             });
 
             const agents = customAgentsMap[hub] || [];
-            currentTrackingSubTab = agents[0] || 'All';
+            currentTrackingSubTab = ['unassigned', 'cleared', 'ignored'].includes(hub) ? 'All' : (agents[0] || 'All');
             renderTrackingHub();
         }
 
         function promptAddAgent() {
-            if (['cleared', 'ignored'].includes(currentTrackingHub)) {
-                alert("Cannot add agents to Cleared or Ignored hubs.");
+            if (['unassigned', 'cleared', 'ignored'].includes(currentTrackingHub)) {
+                alert("Agents can only be added to operational hubs.");
                 return;
             }
             const agentName = prompt(`Enter new agent name for ${currentTrackingHub.toUpperCase()} hub:`);
@@ -2987,9 +3053,16 @@
             const tbody = document.getElementById('trackingTableBody');
             const searchVal = (document.getElementById('trackingSearch').value || '').toLowerCase();
             const sortVal = document.getElementById('trackingSort').value;
+            const addAgentButton = document.querySelector('#tab-tracking button[onclick="promptAddAgent()"]');
+            if (addAgentButton) addAgentButton.classList.toggle('hidden', ['unassigned', 'cleared', 'ignored'].includes(currentTrackingHub));
+            const stageForHub = trackingStageConfig[currentTrackingHub];
+            const milestoneHeader = document.getElementById('trackingMilestoneHeader');
+            if (milestoneHeader) {
+                milestoneHeader.textContent = stageForHub ? `${stageForHub.label} date` : 'Recorded milestone date';
+            }
 
             subTabsEl.innerHTML = '';
-            if (!['cleared', 'ignored'].includes(currentTrackingHub)) {
+            if (!['unassigned', 'cleared', 'ignored'].includes(currentTrackingHub)) {
                 const agents = customAgentsMap[currentTrackingHub] || [];
                 agents.forEach(agent => {
                     const isActive = currentTrackingSubTab === agent;
@@ -3000,7 +3073,11 @@
                     `;
                 });
             } else {
-                subTabsEl.innerHTML = `<span class="text-slate-400 italic px-2">System Automated Tab</span>`;
+                const label = currentTrackingHub === 'unassigned' ? 'Containers missing their next agent assignment' : 'System filtered tab';
+                const tabDescription = document.createElement('span');
+                tabDescription.className = 'text-slate-400 italic px-2';
+                tabDescription.textContent = label;
+                subTabsEl.replaceChildren(tabDescription);
             }
 
             let filtered = masterData.filter(row => {
@@ -3010,39 +3087,35 @@
                 const matchesSearch = !searchVal || cont.includes(searchVal) || bl.includes(searchVal) || cust.includes(searchVal);
                 if (!matchesSearch) return false;
 
-                const isIgnoredRecord = Object.values(row).some(val => String(val).toLowerCase().includes('ignored'));
+                const isIgnoredRecord = isTrackingIgnoredRecord(row);
                 if (currentTrackingHub === 'ignored') return isIgnoredRecord;
                 if (isIgnoredRecord) return false;
 
-                const exitVal = String(row["Exit"] || '').trim();
-                const hasValidExit = exitVal !== '' && exitVal !== '-' && exitVal.toLowerCase() !== 'null';
-                const isExplicitlyCleared = String(row["Status"] || '').toLowerCase() === 'cleared';
-                const isClearedRecord = hasValidExit || isExplicitlyCleared;
+                const isClearedRecord = isTrackingClearedRecord(row);
 
                 if (currentTrackingHub === 'cleared') return isClearedRecord;
                 if (isClearedRecord) return false;
+                if (currentTrackingHub === 'unassigned') return Boolean(getNextTrackingAssignment(row));
 
                 if (currentTrackingHub === 'dubai') {
                     const jAgent = String(row["Jebel Ali Agent"] || '').trim();
                     if (!jAgent) return false;
                     if (jAgent.toLowerCase() !== currentTrackingSubTab.toLowerCase()) return false;
-                    const loadDxb = String(row["Loading DXB"] || '').trim();
-                    if (loadDxb !== '' && loadDxb !== '-') return false;
+                    if (isTrackingValuePresent(row["Loading DXB"])) return false;
                     return true;
                 } 
                 
                 if (currentTrackingHub === 'iran') {
                     const iranConsignee = String(row["Iran consignee"] || '').trim().toLowerCase();
                     if (!iranConsignee.includes(currentTrackingSubTab.toLowerCase())) return false;
-                    const loadIran = String(row["Loading Iran"] || '').trim();
-                    if (loadIran !== '' && loadIran !== '-') return false;
+                    if (isTrackingValuePresent(row["Loading Iran"])) return false;
                     return true;
                 } 
                 
                 if (currentTrackingHub === 'afghanistan') {
                     const aAgent = String(row["Jawaz / Afghanistan Agent"] || '').trim();
                     if (!aAgent || aAgent.toLowerCase() !== currentTrackingSubTab.toLowerCase()) return false;
-                    if (exitVal !== '' && exitVal !== '-') return false;
+                    if (isTrackingValuePresent(row['Exit'])) return false;
                     return true;
                 }
 
@@ -3050,69 +3123,227 @@
             });
 
             filtered.sort((a, b) => {
-                const dateA = new Date(a["Date of documents"] || 0);
-                const dateB = new Date(b["Date of documents"] || 0);
+                const dateA = parseMasterDate(a['Date of documents']);
+                const dateB = parseMasterDate(b['Date of documents']);
                 const contA = String(a["Container number"] || '');
                 const contB = String(b["Container number"] || '');
 
-                if (sortVal === 'date_desc') return dateB - dateA;
-                if (sortVal === 'date_asc') return dateA - dateB;
+                if (sortVal === 'age_desc') {
+                    const ageHubA = currentTrackingHub === 'unassigned' ? getNextTrackingAssignment(a)?.hub : currentTrackingHub;
+                    const ageHubB = currentTrackingHub === 'unassigned' ? getNextTrackingAssignment(b)?.hub : currentTrackingHub;
+                    const ageA = getTrackingAgeDays(a, ageHubA);
+                    const ageB = getTrackingAgeDays(b, ageHubB);
+                    if (ageA === null && ageB !== null) return 1;
+                    if (ageB === null && ageA !== null) return -1;
+                    return (ageB || 0) - (ageA || 0);
+                }
+                if (sortVal === 'date_desc') return (Number.isFinite(dateB) ? dateB : -Infinity) - (Number.isFinite(dateA) ? dateA : -Infinity);
+                if (sortVal === 'date_asc') return (Number.isFinite(dateA) ? dateA : Infinity) - (Number.isFinite(dateB) ? dateB : Infinity);
                 if (sortVal === 'container_asc') return contA.localeCompare(contB);
                 if (sortVal === 'container_desc') return contB.localeCompare(contA);
                 return 0;
             });
 
-            document.getElementById('track-total').textContent = masterData.filter(r => !String(r["Exit"] || '').trim() || String(r["Exit"] || '').trim() === '-').length;
-            document.getElementById('track-dxb').textContent = masterData.filter(r => Boolean(r["Arrival DXB"]) && (!r["Exit"] || r["Exit"] === '-')).length;
-            document.getElementById('track-iran').textContent = masterData.filter(r => Boolean(r["Arrival Iran"]) && (!r["Exit"] || r["Exit"] === '-')).length;
-            document.getElementById('track-exit').textContent = masterData.filter(r => {
-                const ex = String(r["Exit"] || '').trim();
-                return ex !== '' && ex !== '-' && ex.toLowerCase() !== 'null';
-            }).length;
+            document.getElementById('track-total').textContent = masterData.filter(row => !isTrackingClearedRecord(row) && !isTrackingIgnoredRecord(row)).length;
+            document.getElementById('track-dxb').textContent = masterData.filter(row => isTrackingValuePresent(row['Arrival DXB']) && !isTrackingIgnoredRecord(row)).length;
+            document.getElementById('track-iran').textContent = masterData.filter(row => isTrackingValuePresent(row['Arrival Iran']) && !isTrackingIgnoredRecord(row)).length;
+            document.getElementById('track-exit').textContent = masterData.filter(isTrackingClearedRecord).length;
 
-            tbody.innerHTML = '';
+            tbody.replaceChildren();
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400">No container records found in this tracking segment.</td></tr>`;
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 8;
+                cell.className = 'p-8 text-center text-slate-400';
+                cell.textContent = 'No container records found in this tracking segment.';
+                row.appendChild(cell);
+                tbody.appendChild(row);
                 return;
             }
 
             filtered.forEach(row => {
                 const docId = row.docId;
-                const currentStatus = row["Status"] || '';
-                const milestoneDate = row["Exit"] || row["Arrival Iran"] || row["Arrival DXB"] || '';
+                const nextAssignment = currentTrackingHub === 'unassigned' ? getNextTrackingAssignment(row) : null;
+                const stageHub = nextAssignment ? nextAssignment.hub : currentTrackingHub;
+                const stage = trackingStageConfig[stageHub];
+                const currentStatus = safeText(row['Status']).toLowerCase();
+                const ageDays = getTrackingAgeDays(row, stageHub);
+                const events = Array.isArray(row.trackingEvents) ? row.trackingEvents : [];
+                const rowElement = document.createElement('tr');
+                rowElement.className = 'hover:bg-slate-800/40 transition';
 
-                tbody.innerHTML += `
-                    <tr class="hover:bg-slate-800/40 transition">
-                        <td class="p-3.5 font-bold text-white">${row["Container number"] || 'N/A'}</td>
-                        <td class="p-3.5 font-semibold text-blue-400">${row["BL number"] || 'N/A'}</td>
-                        <td class="p-3.5">${row["Customer name"] || 'N/A'}</td>
-                        <td class="p-3.5 font-bold text-amber-400">${currentTrackingSubTab}</td>
-                        <td class="p-3.5">
-                            <input type="text" id="track_date_${docId}" value="${milestoneDate}" placeholder="dd.mm.yy" class="p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs w-32 font-mono">
-                        </td>
-                        <td class="p-3.5 flex items-center space-x-2">
-                            <input type="text" id="track_status_box_${docId}" value="${currentStatus}" placeholder="Type cleared / ignored..." class="p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs font-bold w-36">
-                            <button onclick="saveTrackingStatusAndMilestone('${docId}', '${row["Container number"]}')" class="px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg font-bold transition shadow-md btn-3d">Save</button>
-                        </td>
-                    </tr>
-                `;
+                const addCell = (value, className = 'p-3.5') => {
+                    const cell = document.createElement('td');
+                    cell.className = className;
+                    cell.textContent = safeText(value) || 'N/A';
+                    rowElement.appendChild(cell);
+                    return cell;
+                };
+
+                addCell(row['Container number'], 'p-3.5 font-bold text-white');
+                addCell(row['BL number'], 'p-3.5 font-semibold text-blue-400');
+                addCell(row['Customer name']);
+                addCell(nextAssignment ? `Unassigned · ${nextAssignment.assignmentLabel}` : currentTrackingSubTab, 'p-3.5 font-bold text-amber-400');
+
+                const milestoneCell = document.createElement('td');
+                milestoneCell.className = 'p-3.5';
+                const dateInput = document.createElement('input');
+                dateInput.type = 'text';
+                dateInput.id = `track_date_${docId}`;
+                dateInput.value = stage ? safeText(row[stage.dateField]) : '';
+                dateInput.placeholder = stage ? 'dd.mm.yy' : 'Archived';
+                dateInput.disabled = !stage;
+                dateInput.className = 'p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs w-32 font-mono disabled:opacity-50';
+                milestoneCell.appendChild(dateInput);
+                rowElement.appendChild(milestoneCell);
+
+                const ageCell = document.createElement('td');
+                ageCell.className = 'p-3.5';
+                const ageBadge = document.createElement('span');
+                ageBadge.className = `font-bold ${ageDays === null ? 'text-slate-500' : ageDays >= 14 ? 'text-red-400' : ageDays >= 7 ? 'text-amber-400' : 'text-emerald-400'}`;
+                ageBadge.textContent = ageDays === null ? 'No milestone' : `${ageDays} day${ageDays === 1 ? '' : 's'}`;
+                ageCell.appendChild(ageBadge);
+                rowElement.appendChild(ageCell);
+
+                const updateCell = document.createElement('td');
+                updateCell.className = 'p-3.5';
+                if (nextAssignment) {
+                    const assignmentInput = document.createElement('input');
+                    assignmentInput.type = 'text';
+                    assignmentInput.id = `track_agent_${docId}`;
+                    assignmentInput.placeholder = `Assign ${nextAssignment.assignmentLabel}`;
+                    assignmentInput.className = 'p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs w-40';
+                    updateCell.appendChild(assignmentInput);
+                } else {
+                    const statusSelect = document.createElement('select');
+                    statusSelect.id = `track_status_box_${docId}`;
+                    statusSelect.className = 'p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs font-bold w-36';
+                    statusSelect.add(new Option('No status change', ''));
+                    ['in transit', 'cleared', 'ignored'].forEach(status => statusSelect.add(new Option(status, status)));
+                    if (currentStatus && !['in transit', 'cleared', 'ignored'].includes(currentStatus)) {
+                        statusSelect.add(new Option(`Keep: ${currentStatus}`, currentStatus));
+                    }
+                    statusSelect.value = '';
+                    updateCell.appendChild(statusSelect);
+                }
+                rowElement.appendChild(updateCell);
+
+                const actionCell = document.createElement('td');
+                actionCell.className = 'p-3.5 space-x-2';
+                const timelineButton = document.createElement('button');
+                timelineButton.type = 'button';
+                timelineButton.className = 'px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-200 font-bold';
+                timelineButton.textContent = `Timeline (${events.length})`;
+                timelineButton.addEventListener('click', () => openTrackingTimeline(docId));
+                actionCell.appendChild(timelineButton);
+                if (stage) {
+                    const saveButton = document.createElement('button');
+                    saveButton.type = 'button';
+                    saveButton.className = 'px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg font-bold';
+                    saveButton.textContent = nextAssignment ? 'Assign' : 'Save';
+                    saveButton.addEventListener('click', () => saveTrackingStatusAndMilestone(docId, safeText(row['Container number']), stageHub));
+                    actionCell.appendChild(saveButton);
+                }
+                rowElement.appendChild(actionCell);
+                tbody.appendChild(rowElement);
             });
         }
 
-        async function saveTrackingStatusAndMilestone(docId, containerNo) {
+        async function saveTrackingStatusAndMilestone(docId, containerNo, stageHub) {
+            const row = masterData.find(record => record.docId === docId);
+            const stage = trackingStageConfig[stageHub];
+            if (!row || !stage) return;
             const dateVal = document.getElementById(`track_date_${docId}`).value.trim();
-            const statusBoxVal = document.getElementById(`track_status_box_${docId}`).value.trim().toLowerCase();
+            const statusControl = document.getElementById(`track_status_box_${docId}`);
+            const statusValue = statusControl ? statusControl.value.trim().toLowerCase() : '';
+            const nextAssignment = currentTrackingHub === 'unassigned' ? getNextTrackingAssignment(row) : null;
+            const assignmentControl = document.getElementById(`track_agent_${docId}`);
+            const assignmentValue = assignmentControl ? assignmentControl.value.trim() : '';
 
-            let updatePayload = {};
-            if (dateVal) updatePayload["Exit"] = dateVal;
-            if (statusBoxVal) updatePayload["Status"] = statusBoxVal;
+            if (dateVal && !Number.isFinite(parseMasterDate(dateVal))) {
+                showToast('Enter a valid milestone date (dd.mm.yy or yyyy-mm-dd).', 'error');
+                return;
+            }
 
-            updatePayload["lastUpdatedBy"] = currentUsername || 'System';
-            updatePayload["lastUpdatedTime"] = new Date().toLocaleString();
+            const updatePayload = {};
+            if (dateVal) updatePayload[stage.dateField] = dateVal;
+            if (statusValue) updatePayload['Status'] = statusValue;
+            if (nextAssignment && assignmentValue) updatePayload[nextAssignment.assignmentField] = assignmentValue;
 
-            await containersCollection.doc(docId).update(updatePayload);
-            await logAuditAction("Tracking Update", containerNo, `Updated tracking status to "${statusBoxVal}" and saved milestone date.`);
-            alert(`Container ${containerNo} successfully updated and shifted based on status rule!`);
+            if (Object.keys(updatePayload).length === 0) {
+                showToast('Enter a date, status, or agent assignment first.', 'warning');
+                return;
+            }
+
+            const updatedAt = new Date().toISOString();
+            const event = {
+                hub: stageHub,
+                milestone: stage.label,
+                value: dateVal || '',
+                status: statusValue || '',
+                agent: assignmentValue || '',
+                updatedBy: currentUsername || 'System',
+                at: updatedAt
+            };
+            updatePayload['trackingEvents'] = firebase.firestore.FieldValue.arrayUnion(event);
+            updatePayload['lastUpdatedBy'] = currentUsername || 'System';
+            updatePayload['lastUpdatedTime'] = new Date(updatedAt).toLocaleString();
+
+            try {
+                await containersCollection.doc(docId).update(updatePayload);
+                const details = [
+                    dateVal ? `${stage.label}: ${dateVal}` : '',
+                    statusValue ? `Status: ${statusValue}` : '',
+                    assignmentValue ? `${stage.assignmentLabel}: ${assignmentValue}` : ''
+                ].filter(Boolean).join('; ');
+                await logAuditAction('Tracking Update', containerNo, details);
+                showToast(`Tracking updated for ${containerNo}.`, 'success');
+            } catch (error) {
+                console.error('Tracking update failed:', error);
+                showToast('Could not save this tracking update.', 'error');
+            }
+        }
+
+        function openTrackingTimeline(docId) {
+            const row = masterData.find(record => record.docId === docId);
+            if (!row) return;
+            document.getElementById('trackingTimelineTitle').textContent = `Timeline · ${safeText(row['Container number']) || 'Container'}`;
+            document.getElementById('trackingTimelineSubtitle').textContent = `${safeText(row['Customer name']) || 'Customer not specified'} · BL ${safeText(row['BL number']) || 'not specified'}`;
+            const list = document.getElementById('trackingTimelineList');
+            list.replaceChildren();
+
+            const events = Array.isArray(row.trackingEvents) ? [...row.trackingEvents] : [];
+            events.sort((a, b) => Date.parse(a.at || 0) - Date.parse(b.at || 0));
+            if (events.length === 0) {
+                const empty = document.createElement('li');
+                empty.className = 'text-sm text-slate-400';
+                empty.textContent = 'No tracking events recorded yet. New hub updates will appear here.';
+                list.appendChild(empty);
+            } else {
+                events.forEach(event => {
+                    const item = document.createElement('li');
+                    item.className = 'relative border-l-2 border-emerald-700/60 pl-4 pb-4';
+                    const heading = document.createElement('p');
+                    heading.className = 'text-sm font-bold text-slate-100';
+                    heading.textContent = `${safeText(event.milestone) || safeText(event.hub) || 'Tracking update'}${event.value ? ` · ${safeText(event.value)}` : ''}`;
+                    const details = document.createElement('p');
+                    details.className = 'mt-1 text-xs text-slate-300';
+                    details.textContent = [event.status ? `Status: ${event.status}` : '', event.agent ? `Agent: ${event.agent}` : ''].filter(Boolean).join(' · ') || 'Milestone recorded';
+                    const timestamp = document.createElement('p');
+                    timestamp.className = 'mt-1 text-[11px] text-slate-500';
+                    const parsedTime = event.at ? new Date(event.at) : null;
+                    timestamp.textContent = `${event.updatedBy || 'System'} · ${parsedTime && !Number.isNaN(parsedTime.getTime()) ? parsedTime.toLocaleString() : 'Time unavailable'}`;
+                    item.append(heading, details, timestamp);
+                    list.appendChild(item);
+                });
+            }
+            document.getElementById('trackingTimelineOverlay').classList.remove('hidden');
+            document.getElementById('trackingTimelineOverlay').classList.add('flex');
+        }
+
+        function closeTrackingTimeline() {
+            document.getElementById('trackingTimelineOverlay').classList.add('hidden');
+            document.getElementById('trackingTimelineOverlay').classList.remove('flex');
         }
 
         function generateTrackingPDF() {
