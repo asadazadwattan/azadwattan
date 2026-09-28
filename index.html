@@ -12,6 +12,8 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Chart.js for Analytics -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Three.js for the isometric authentication scene -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- html2pdf for Document Generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
@@ -20,6 +22,11 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <style>
+    body:not(.authenticated) > aside,
+    body:not(.authenticated) > main {
+        display: none !important;
+    }
+
     .table-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
     .table-scroll::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
     .table-scroll::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.4); border-radius: 4px; }
@@ -52,7 +59,517 @@
     .btn-3d:active {
         transform: translateY(1px);
     }
-    
+
+    .toast {
+        position: fixed;
+        right: 1rem;
+        bottom: 1rem;
+        z-index: 9999;
+        min-width: 260px;
+        max-width: 360px;
+        padding: 0.85rem 1rem;
+        border-radius: 0.9rem;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(15, 23, 42, 0.9);
+        backdrop-filter: blur(12px);
+        color: white;
+        box-shadow: 0 20px 40px -20px rgba(0,0,0,0.9);
+        transform: translateY(18px);
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.2s ease;
+    }
+    .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .toast.success { border-color: rgba(16, 185, 129, 0.5); background: rgba(6, 78, 59, 0.9); }
+    .toast.error { border-color: rgba(239, 68, 68, 0.5); background: rgba(127, 29, 29, 0.9); }
+    .toast.warning { border-color: rgba(245, 158, 11, 0.5); background: rgba(120, 53, 15, 0.9); }
+    .toast.info { border-color: rgba(59,130,246,0.5); background: rgba(30, 64, 175, 0.9); }
+
+    #authOverlay {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: grid;
+        grid-template-columns: minmax(0, 1.12fr) minmax(420px, 0.88fr);
+        align-items: stretch;
+        padding: 0;
+        overflow-y: auto;
+        background: #eef2e9;
+        backdrop-filter: none;
+    }
+    #authOverlay.hidden { display: none; }
+
+    .auth-layout { display: contents; }
+
+    .auth-visual {
+        position: relative;
+        min-height: 100vh;
+        overflow: hidden;
+        background: #d8e7dc;
+        isolation: isolate;
+    }
+
+    .auth-visual::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        background: linear-gradient(155deg, #f0eee2 0%, #d9e5d8 54%, #b6d2ca 100%);
+    }
+
+    .auth-port-canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        filter: saturate(1.55) contrast(1.08);
+        pointer-events: none;
+    }
+
+    .auth-visual-header {
+        position: absolute;
+        top: clamp(2rem, 6vh, 4rem);
+        left: clamp(2rem, 6vw, 5rem);
+        z-index: 2;
+        max-width: 390px;
+        color: #183a36;
+        pointer-events: none;
+    }
+
+    .auth-visual-header .eyebrow {
+        color: #31756a;
+        font-size: 10px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+    }
+
+    .auth-visual-header h2 {
+        margin-top: 0.75rem;
+        font-size: clamp(2rem, 3.2vw, 3.4rem);
+        line-height: 1.02;
+        font-weight: 900;
+        color: #183a36;
+    }
+
+    .auth-visual-header p {
+        margin-top: 0.8rem;
+        max-width: 320px;
+        color: #486963;
+        font-size: 13px;
+        line-height: 1.6;
+    }
+
+    .auth-scene-caption {
+        position: absolute;
+        left: clamp(2rem, 6vw, 5rem);
+        right: 2rem;
+        bottom: clamp(2rem, 6vh, 4rem);
+        z-index: 2;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        pointer-events: none;
+    }
+
+    .auth-progress-label {
+        display: block;
+        margin-bottom: 0.7rem;
+        color: #486963;
+        font-size: 9px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+    }
+
+    .auth-signal-track {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+    .auth-signal-node {
+        width: 10px;
+        height: 10px;
+        border: 1px solid #71958a;
+        border-radius: 50%;
+        background: #d5e4db;
+        transition: background 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+    }
+
+    .auth-signal-node.active {
+        transform: scale(1.2);
+        border-color: #1e8c71;
+        background: #37b68d;
+        box-shadow: 0 0 0 5px rgba(55, 182, 141, 0.16), 0 0 18px rgba(55, 182, 141, 0.75);
+    }
+
+    .auth-scene-status {
+        color: #486963;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        text-align: right;
+    }
+
+    .auth-panel {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: clamp(2rem, 6vw, 5rem);
+        background: #f7f7f1;
+        color: #213b38;
+    }
+
+    .auth-card {
+        width: min(100%, 430px);
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        color: #213b38;
+    }
+
+    .auth-brand-mark {
+        display: inline-grid;
+        width: 48px;
+        height: 48px;
+        place-items: center;
+        margin-bottom: 1.1rem;
+        border-radius: 14px;
+        border: 1px solid #c7d6cc;
+        background: #e4eee6;
+        color: #287b69;
+    }
+
+    .auth-title { color: #203b36; }
+    .auth-subtitle { color: #4b8174; }
+
+    .auth-tab { color: #70827b; }
+    #authTabSignin { color: #237864; border-color: #32977d; }
+
+    .auth-card label { color: #405851; }
+    .auth-card input.auth-input {
+        border-color: #cbd8cf;
+        background: #fffefa;
+        color: #203b36;
+        box-shadow: none;
+    }
+    .auth-card input.auth-input:focus {
+        border-color: #31967d;
+        box-shadow: 0 0 0 3px rgba(49, 150, 125, 0.13);
+    }
+
+    .auth-card .auth-button { box-shadow: 0 10px 22px rgba(38, 115, 96, 0.16); }
+    #authOverlay #signinForm .auth-button,
+    #authOverlay #verificationScreen .auth-button {
+        border: 0;
+        background: linear-gradient(115deg, #287c69, #3d9d7f);
+        color: #fff;
+        box-shadow: 0 10px 22px rgba(38, 115, 96, 0.18);
+    }
+    #authOverlay #signupForm .auth-button {
+        border: 0;
+        background: linear-gradient(115deg, #bd704e, #d39151);
+        color: #fff;
+        box-shadow: 0 10px 22px rgba(189, 112, 78, 0.18);
+    }
+    #authOverlay #signinForm .auth-button:hover,
+    #authOverlay #verificationScreen .auth-button:hover { background: linear-gradient(115deg, #216b5b, #328c70); }
+    #authOverlay #signupForm .auth-button:hover { background: linear-gradient(115deg, #aa6042, #c17e3d); }
+
+    @media (max-width: 900px) {
+        #authOverlay { grid-template-columns: minmax(0, 1fr) minmax(370px, 0.9fr); }
+        .auth-visual-header { left: 2rem; }
+        .auth-scene-caption { left: 2rem; }
+        .auth-panel { padding: 2.5rem; }
+    }
+
+    @media (max-width: 680px) {
+        #authOverlay { grid-template-columns: 1fr; grid-template-rows: minmax(245px, 34vh) auto; }
+        .auth-visual { min-height: 245px; }
+        .auth-visual-header { top: 1.25rem; left: 1.4rem; }
+        .auth-visual-header h2 { max-width: 280px; margin-top: 0.35rem; font-size: 1.7rem; }
+        .auth-visual-header p { display: none; }
+        .auth-scene-caption { right: 1.4rem; bottom: 1rem; left: 1.4rem; }
+        .auth-progress-label { margin-bottom: 0.45rem; }
+        .auth-panel { min-height: auto; padding: 2rem 1.4rem 2.5rem; }
+        .auth-card { max-width: 440px; }
+        .auth-card > div:first-child { margin-bottom: 1.25rem; }
+        .auth-brand-mark { width: 40px; height: 40px; margin-bottom: 0.8rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .auth-signal-node { transition: none; }
+    }
+
+    body.authenticated {
+        background: #edf1ea !important;
+        color: #2d4941 !important;
+    }
+
+    body.authenticated aside {
+        background: #e5ede6 !important;
+        border-right: 1px solid #cbd9cf !important;
+        box-shadow: none !important;
+        color: #49655d !important;
+    }
+
+    body.authenticated aside > div:first-child {
+        background: #edf2ec !important;
+        border-color: #d4dfd5 !important;
+    }
+
+    body.authenticated aside h1 {
+        background: none !important;
+        color: #276052 !important;
+        -webkit-text-fill-color: #276052 !important;
+    }
+
+    body.authenticated aside .bg-slate-900\/80,
+    body.authenticated aside .bg-slate-900\/40,
+    body.authenticated aside .bg-slate-900\/30 {
+        background: #dce7de !important;
+    }
+
+    body.authenticated aside .border-slate-800\/80,
+    body.authenticated aside .border-slate-800 {
+        border-color: #cfdbd1 !important;
+    }
+
+    body.authenticated aside .text-white { color: #27473e !important; }
+    body.authenticated aside .text-slate-300,
+    body.authenticated aside .text-slate-400 { color: #557168 !important; }
+    body.authenticated aside .text-slate-500 { color: #7b9186 !important; }
+    body.authenticated aside .text-blue-400 { color: #317967 !important; }
+
+    body.authenticated aside button:not(.nav-btn),
+    body.authenticated aside select {
+        border-color: #c5d5ca !important;
+        background-color: #f7f8f2 !important;
+        color: #3c5d52 !important;
+    }
+
+    body.authenticated aside .nav-btn {
+        border-color: transparent !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        color: #527067 !important;
+    }
+
+    body.authenticated aside .nav-btn:hover {
+        background: #dbe8de !important;
+        color: #275f52 !important;
+    }
+
+    body.authenticated aside .nav-btn.bg-gradient-to-r {
+        border-color: #c0d6c6 !important;
+        background: #d4e5d8 !important;
+        color: #205c4d !important;
+        box-shadow: inset 3px 0 #3d987c !important;
+    }
+
+    body.authenticated main {
+        background: #f1f3ed !important;
+        color: #334f46 !important;
+    }
+
+    body.authenticated main h2 { color: #23473d !important; }
+    body.authenticated main h3 { color: #46645a !important; }
+    body.authenticated main .text-white { color: #2a473f !important; }
+    body.authenticated main .text-slate-200,
+    body.authenticated main .text-slate-300 { color: #49645b !important; }
+    body.authenticated main .text-slate-400 { color: #70847a !important; }
+    body.authenticated main .text-slate-500 { color: #84968c !important; }
+    body.authenticated main .text-blue-400,
+    body.authenticated main .text-blue-500 { color: #317c69 !important; }
+    body.authenticated main .text-emerald-400 { color: #2f8b6d !important; }
+    body.authenticated main .text-amber-400 { color: #bd7b3e !important; }
+
+    body.authenticated main .glass-card,
+    body.authenticated main .glass-panel {
+        border-color: #d7e1d8 !important;
+        background: #fffefa !important;
+        box-shadow: 0 8px 24px -20px rgba(40, 75, 61, 0.38) !important;
+        color: #38564c !important;
+        backdrop-filter: none !important;
+    }
+
+    body.authenticated main [class~="bg-slate-900/90"],
+    body.authenticated main [class~="bg-slate-900/80"],
+    body.authenticated main [class~="bg-slate-900/60"],
+    body.authenticated main [class~="bg-slate-900/40"],
+    body.authenticated main [class~="bg-slate-900"],
+    body.authenticated main [class~="bg-slate-800/80"],
+    body.authenticated main [class~="bg-slate-800/60"],
+    body.authenticated main [class~="bg-slate-800"] {
+        border-color: #d0ddd3 !important;
+        background-color: #e8efe8 !important;
+        color: #47645a !important;
+    }
+
+    body.authenticated main input[class],
+    body.authenticated main select[class],
+    body.authenticated main textarea[class] {
+        border-color: #cedbd1 !important;
+        background-color: #fffefa !important;
+        color: #304b42 !important;
+    }
+
+    body.authenticated main thead {
+        border-color: #d5dfd6 !important;
+        background: #e7eee7 !important;
+        color: #466258 !important;
+    }
+
+    body.authenticated main tbody tr { border-color: #e1e8e0 !important; }
+    body.authenticated main tbody tr:hover { background: #f0f5ef !important; }
+    body.authenticated main #addNewBtn {
+        border: 0;
+        background: linear-gradient(115deg, #287c69, #3d9d7f) !important;
+    }
+
+    body.authenticated.dark-mode {
+        background: #0b1714 !important;
+        color: #d3e1d8 !important;
+    }
+
+    body.authenticated.dark-mode aside {
+        border-right-color: #273b34 !important;
+        background: #111f1b !important;
+        color: #bdd0c5 !important;
+    }
+
+    body.authenticated.dark-mode aside > div:first-child,
+    body.authenticated.dark-mode aside .bg-slate-900\/80,
+    body.authenticated.dark-mode aside .bg-slate-900\/40,
+    body.authenticated.dark-mode aside .bg-slate-900\/30 {
+        border-color: #273b34 !important;
+        background: #15241f !important;
+    }
+
+    body.authenticated.dark-mode aside h1 { color: #7cc5a6 !important; -webkit-text-fill-color: #7cc5a6 !important; }
+    body.authenticated.dark-mode aside .text-white { color: #e3eee7 !important; }
+    body.authenticated.dark-mode aside .text-slate-300,
+    body.authenticated.dark-mode aside .text-slate-400 { color: #a8beb2 !important; }
+    body.authenticated.dark-mode aside .text-slate-500 { color: #829b8f !important; }
+    body.authenticated.dark-mode aside .text-blue-400 { color: #7cc5a6 !important; }
+    body.authenticated.dark-mode aside .text-amber-400 { color: #e6b675 !important; }
+
+    body.authenticated.dark-mode aside button:not(.nav-btn),
+    body.authenticated.dark-mode aside select {
+        border-color: #344b42 !important;
+        background-color: #1a2b25 !important;
+        color: #d2e0d7 !important;
+    }
+
+    body.authenticated.dark-mode aside .nav-btn {
+        border-color: transparent !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        color: #a5b9ad !important;
+    }
+
+    body.authenticated.dark-mode aside .nav-btn:hover { background: #1d332a !important; color: #d5e8dc !important; }
+    body.authenticated.dark-mode aside .nav-btn.bg-gradient-to-r {
+        border-color: #315c4b !important;
+        background: #1d392e !important;
+        color: #b8e0c8 !important;
+        box-shadow: inset 3px 0 #55ad84 !important;
+    }
+
+    body.authenticated.dark-mode main {
+        background: #0e1916 !important;
+        color: #d2e0d7 !important;
+    }
+
+    body.authenticated.dark-mode main h2 { color: #e0ece4 !important; }
+    body.authenticated.dark-mode main h3 { color: #bed2c6 !important; }
+    body.authenticated.dark-mode main .text-white { color: #e3eee7 !important; }
+    body.authenticated.dark-mode main .text-slate-200,
+    body.authenticated.dark-mode main .text-slate-300 { color: #c0d2c7 !important; }
+    body.authenticated.dark-mode main .text-slate-400 { color: #9aafa3 !important; }
+    body.authenticated.dark-mode main .text-slate-500 { color: #849b8f !important; }
+    body.authenticated.dark-mode main .text-blue-400,
+    body.authenticated.dark-mode main .text-blue-500 { color: #78c5a1 !important; }
+    body.authenticated.dark-mode main .text-emerald-400 { color: #75c79b !important; }
+    body.authenticated.dark-mode main .text-amber-400 { color: #e8b774 !important; }
+
+    body.authenticated.dark-mode main .glass-card,
+    body.authenticated.dark-mode main .glass-panel {
+        border-color: #283c34 !important;
+        background: #15221e !important;
+        box-shadow: 0 8px 24px -20px rgba(0, 0, 0, 0.8) !important;
+        color: #c5d8cc !important;
+    }
+
+    body.authenticated.dark-mode main [class~="bg-slate-900/90"],
+    body.authenticated.dark-mode main [class~="bg-slate-900/80"],
+    body.authenticated.dark-mode main [class~="bg-slate-900/60"],
+    body.authenticated.dark-mode main [class~="bg-slate-900/40"],
+    body.authenticated.dark-mode main [class~="bg-slate-900"],
+    body.authenticated.dark-mode main [class~="bg-slate-800/80"],
+    body.authenticated.dark-mode main [class~="bg-slate-800/60"],
+    body.authenticated.dark-mode main [class~="bg-slate-800"] {
+        border-color: #30463d !important;
+        background-color: #1b2a25 !important;
+        color: #c2d4c9 !important;
+    }
+
+    body.authenticated.dark-mode main input[class],
+    body.authenticated.dark-mode main select[class],
+    body.authenticated.dark-mode main textarea[class] {
+        border-color: #354b41 !important;
+        background-color: #101c18 !important;
+        color: #d7e4db !important;
+    }
+
+    body.authenticated.dark-mode main thead {
+        border-color: #2e4139 !important;
+        background: #1a2924 !important;
+        color: #c3d4ca !important;
+    }
+
+    body.authenticated.dark-mode main tbody tr { border-color: #253830 !important; }
+    body.authenticated.dark-mode main tbody tr:hover { background: #1a2c25 !important; }
+
+    body.authenticated[data-layout="modern"] main .glass-card,
+    body.authenticated[data-layout="modern"] main .glass-panel {
+        border-radius: 10px !important;
+        box-shadow: 0 10px 24px -18px rgba(40, 75, 61, 0.42) !important;
+    }
+
+    body.authenticated.dark-mode[data-layout="modern"] main .glass-card,
+    body.authenticated.dark-mode[data-layout="modern"] main .glass-panel {
+        box-shadow: 0 12px 28px -18px rgba(0, 0, 0, 0.9) !important;
+    }
+
+    body.authenticated[data-layout="classic"] main .glass-card,
+    body.authenticated[data-layout="classic"] main .glass-panel {
+        border-radius: 4px !important;
+        border-color: #d4ded5 !important;
+        background: #f7f8f3 !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+    }
+
+    body.authenticated.dark-mode[data-layout="classic"] main .glass-card,
+    body.authenticated.dark-mode[data-layout="classic"] main .glass-panel {
+        border-color: #34483f !important;
+        background: #121e1a !important;
+    }
+
+    body.authenticated[data-layout="classic"] main thead { background: #e5ebe4 !important; }
+    body.authenticated.dark-mode[data-layout="classic"] main thead { background: #1b2924 !important; }
+
     /* Light Mode Styles (Active when body has .light-mode) */
     body.light-mode {
         background-color: #f1f5f9 !important;
@@ -90,68 +607,95 @@
 </head>
 <body class="bg-[#070B14] font-sans text-slate-200 flex h-screen overflow-hidden selection:bg-blue-500 selection:text-white">
 
+    <div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
     <!-- AUTHENTICATION OVERLAY / SCREEN -->
     <div id="authOverlay" class="fixed inset-0 bg-[#070B14]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4">
-        <div class="glass-card rounded-2xl max-w-md w-full p-8 border border-slate-700/60 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)]">
-            <div class="text-center mb-6">
-                <div class="inline-block p-3 rounded-xl bg-blue-600/20 border border-blue-500/30 mb-3 shadow-[0_0_20px_rgba(59,130,246,0.3)]">
-                    <svg class="w-8 h-8 text-blue-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+        <div class="auth-layout">
+            <section class="auth-visual" aria-label="Animated isometric shipping port">
+                <canvas id="authPortCanvas" class="auth-port-canvas" aria-hidden="true"></canvas>
+                <div class="auth-visual-header">
+                    <span class="eyebrow">Azad Wattan · Global logistics</span>
+                    <h2>Every shipment<br>has a clear route.</h2>
+                    <p>From port arrival to final delivery, keep every container moving with confidence.</p>
                 </div>
-                <h1 class="text-lg font-black tracking-wider text-white uppercase">AZAD WATTAN GENERAL TRADING CO.</h1>
-                <p class="text-xs text-blue-400 font-semibold mt-1 tracking-wide">Enterprise 3D Secure Workspace</p>
+                <div class="auth-scene-caption">
+                    <div>
+                        <span class="auth-progress-label">Connection sequence</span>
+                        <div class="auth-signal-track" aria-label="Authentication progress">
+                            <span class="auth-signal-node" data-auth-node="0"></span>
+                            <span class="auth-signal-node" data-auth-node="1"></span>
+                            <span class="auth-signal-node" data-auth-node="2"></span>
+                            <span class="auth-signal-node" data-auth-node="3"></span>
+                        </div>
+                    </div>
+                    <span class="auth-scene-status" id="authSceneStatus">Port online</span>
+                </div>
+            </section>
+
+            <section class="auth-panel" aria-label="Account access">
+            <div class="auth-card">
+                <div class="mb-6">
+                    <div class="auth-brand-mark">
+                        <svg class="w-8 h-8 text-blue-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    </div>
+                    <h1 class="auth-title text-lg font-black tracking-wider uppercase">AZAD WATTAN GENERAL TRADING CO.</h1>
+                    <p class="auth-subtitle text-xs font-semibold mt-1 tracking-wide">Enterprise logistics workspace</p>
+                </div>
+
+                <!-- Tab Switcher for Sign In / Sign Up -->
+                <div class="flex border-b border-slate-700/80 mb-6 text-xs font-semibold">
+                    <button onclick="switchAuthTab('signin')" id="authTabSignin" class="auth-tab flex-1 pb-2.5 text-center border-b-2 border-blue-500 text-blue-400 transition">Sign In</button>
+                    <button onclick="switchAuthTab('signup')" id="authTabSignup" class="auth-tab flex-1 pb-2.5 text-center text-slate-400 hover:text-slate-200 transition">Sign Up (Max 10)</button>
+                </div>
+
+                <!-- Sign In Form -->
+                <form id="signinForm" onsubmit="handleSignIn(event)" class="space-y-4 text-xs">
+                    <div>
+                        <label class="block font-bold mb-1.5 text-slate-300">Username / Email</label>
+                        <input type="text" id="signinUsername" oninput="updateAuthScene()" required autocomplete="username" class="auth-input w-full p-3 bg-slate-900/80 border border-slate-700/80 rounded-lg text-white focus:bg-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition">
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1.5 text-slate-300">Password</label>
+                        <input type="password" id="signinPassword" oninput="updateAuthScene()" required autocomplete="current-password" class="auth-input w-full p-3 bg-slate-900/80 border border-slate-700/80 rounded-lg text-white focus:bg-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition">
+                    </div>
+                    <div id="signinError" class="text-red-400 text-[11px] font-medium hidden"></div>
+                    <button type="submit" class="auth-button w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg font-bold transition btn-3d shadow-lg shadow-blue-600/30">Sign In to Workspace</button>
+                </form>
+
+                <!-- Sign Up Form -->
+                <form id="signupForm" onsubmit="handleSignUp(event)" class="space-y-4 text-xs hidden">
+                    <div>
+                        <label class="block font-bold mb-1.5 text-slate-300">Choose Username</label>
+                        <input type="text" id="signupUsername" oninput="updateAuthScene()" required autocomplete="username" class="auth-input w-full p-3 bg-slate-900/80 border border-slate-700/80 rounded-lg text-white focus:bg-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition">
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1.5 text-slate-300">Password</label>
+                        <input type="password" id="signupPassword" oninput="updateAuthScene()" required autocomplete="new-password" class="auth-input w-full p-3 bg-slate-900/80 border border-slate-700/80 rounded-lg text-white focus:bg-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition">
+                    </div>
+                    <div class="bg-amber-500/10 border border-amber-500/30 p-3 rounded-lg text-amber-300 text-[11px] leading-relaxed">
+                        ⚠️ New signups require an <strong>Admin Verification Code</strong> before active workspace entry is unlocked. A code will be generated for admin approval.
+                    </div>
+                    <div id="signupError" class="text-red-400 text-[11px] font-medium hidden"></div>
+                    <button type="submit" class="auth-button w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg font-bold transition btn-3d shadow-lg shadow-emerald-600/30">Register & Request Code</button>
+                </form>
+
+                <!-- Verification Code Input Screen -->
+                <div id="verificationScreen" class="space-y-4 text-xs hidden">
+                    <div class="bg-blue-500/10 border border-blue-500/30 p-3 rounded-lg text-blue-200">
+                        <p class="font-bold mb-1">Registration Pending Admin Verification</p>
+                        <p id="verificationNotice" class="text-[11px] text-slate-300">Your account has been created. Please enter the 6-digit verification code provided by your system administrator.</p>
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1.5 text-slate-300">Enter Admin Verification Code</label>
+                        <input type="text" id="verificationCodeInput" oninput="updateAuthScene()" placeholder="e.g. 482910" autocomplete="one-time-code" class="auth-input w-full p-3 bg-slate-900/80 border border-slate-700/80 rounded-lg font-bold text-center tracking-[0.3em] text-sm text-blue-400 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div id="verifyError" class="text-red-400 text-[11px] font-medium hidden"></div>
+                    <button type="button" onclick="verifyAccountCode()" class="auth-button w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg font-bold transition btn-3d shadow-lg shadow-blue-600/30">Verify & Enter Workspace</button>
+                    <button type="button" onclick="backToSignIn()" class="auth-link w-full text-center text-slate-400 hover:text-white transition">Back to Sign In</button>
+                </div>
             </div>
-
-            <!-- Tab Switcher for Sign In / Sign Up -->
-            <div class="flex border-b border-slate-700/80 mb-6 text-xs font-semibold">
-                <button onclick="switchAuthTab('signin')" id="authTabSignin" class="flex-1 pb-2.5 text-center border-b-2 border-blue-500 text-blue-400 transition">Sign In</button>
-                <button onclick="switchAuthTab('signup')" id="authTabSignup" class="flex-1 pb-2.5 text-center text-slate-400 hover:text-slate-200 transition">Sign Up (Max 10)</button>
-            </div>
-
-            <!-- Sign In Form -->
-            <form id="signinForm" onsubmit="handleSignIn(event)" class="space-y-4 text-xs">
-                <div>
-                    <label class="block font-bold mb-1.5 text-slate-300">Username / Email</label>
-                    <input type="text" id="signinUsername" required class="w-full p-3 bg-slate-900/80 border border-slate-700/80 rounded-lg text-white focus:bg-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition">
-                </div>
-                <div>
-                    <label class="block font-bold mb-1.5 text-slate-300">Password</label>
-                    <input type="password" id="signinPassword" required class="w-full p-3 bg-slate-900/80 border border-slate-700/80 rounded-lg text-white focus:bg-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition">
-                </div>
-                <div id="signinError" class="text-red-400 text-[11px] font-medium hidden"></div>
-                <button type="submit" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg font-bold transition btn-3d shadow-lg shadow-blue-600/30">Sign In to Workspace</button>
-            </form>
-
-            <!-- Sign Up Form -->
-            <form id="signupForm" onsubmit="handleSignUp(event)" class="space-y-4 text-xs hidden">
-                <div>
-                    <label class="block font-bold mb-1.5 text-slate-300">Choose Username</label>
-                    <input type="text" id="signupUsername" required class="w-full p-3 bg-slate-900/80 border border-slate-700/80 rounded-lg text-white focus:bg-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition">
-                </div>
-                <div>
-                    <label class="block font-bold mb-1.5 text-slate-300">Password</label>
-                    <input type="password" id="signupPassword" required class="w-full p-3 bg-slate-900/80 border border-slate-700/80 rounded-lg text-white focus:bg-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition">
-                </div>
-                <div class="bg-amber-500/10 border border-amber-500/30 p-3 rounded-lg text-amber-300 text-[11px] leading-relaxed">
-                    ⚠️ New signups require an <strong>Admin Verification Code</strong> before active workspace entry is unlocked. A code will be generated for admin approval.
-                </div>
-                <div id="signupError" class="text-red-400 text-[11px] font-medium hidden"></div>
-                <button type="submit" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg font-bold transition btn-3d shadow-lg shadow-emerald-600/30">Register & Request Code</button>
-            </form>
-
-            <!-- Verification Code Input Screen -->
-            <div id="verificationScreen" class="space-y-4 text-xs hidden">
-                <div class="bg-blue-500/10 border border-blue-500/30 p-3 rounded-lg text-blue-200">
-                    <p class="font-bold mb-1">Registration Pending Admin Verification</p>
-                    <p class="text-[11px] text-slate-300">Your account has been created. Please enter the 6-digit verification code provided by your system administrator.</p>
-                </div>
-                <div>
-                    <label class="block font-bold mb-1.5 text-slate-300">Enter Admin Verification Code</label>
-                    <input type="text" id="verificationCodeInput" placeholder="e.g. 482910" class="w-full p-3 bg-slate-900/80 border border-slate-700/80 rounded-lg font-bold text-center tracking-[0.3em] text-sm text-blue-400 focus:outline-none focus:border-blue-500">
-                </div>
-                <div id="verifyError" class="text-red-400 text-[11px] font-medium hidden"></div>
-                <button type="button" onclick="verifyAccountCode()" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg font-bold transition btn-3d shadow-lg shadow-blue-600/30">Verify & Enter Workspace</button>
-                <button type="button" onclick="backToSignIn()" class="w-full text-center text-slate-400 hover:text-white transition">Back to Sign In</button>
-            </div>
+            </section>
         </div>
     </div>
 
@@ -258,10 +802,39 @@
             </div>
 
             <!-- FILTER PANEL -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+                <div class="glass-card p-4 rounded-2xl border border-slate-800/80">
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-black">Total Containers</p>
+                    <p id="summaryTotalContainers" class="mt-2 text-2xl font-black text-white">0</p>
+                </div>
+                <div class="glass-card p-4 rounded-2xl border border-slate-800/80">
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-black">Active Pipeline</p>
+                    <p id="summaryActivePipeline" class="mt-2 text-2xl font-black text-blue-400">0</p>
+                </div>
+                <div class="glass-card p-4 rounded-2xl border border-slate-800/80">
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-black">Border Exits</p>
+                    <p id="summaryBorderExit" class="mt-2 text-2xl font-black text-emerald-400">0</p>
+                </div>
+                <div class="glass-card p-4 rounded-2xl border border-slate-800/80">
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-black">Customer Count</p>
+                    <p id="summaryCustomerCount" class="mt-2 text-2xl font-black text-amber-400">0</p>
+                </div>
+            </div>
+
             <div class="glass-card p-4 rounded-2xl shadow-xl mb-6 space-y-3 border border-slate-800/80">
-                <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                <div class="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-slate-800">
                     <h3 class="font-extrabold text-xs uppercase tracking-wider text-slate-300">Multi-Function Filter Panel</h3>
-                    <button onclick="resetFilters()" class="text-xs text-blue-400 hover:text-blue-300 font-bold underline">Reset All Filters</button>
+                    <div class="flex items-center flex-wrap gap-2">
+                        <select id="savedViewSelect" onchange="applySavedView(this.value)" aria-label="Saved master sheet views" class="p-2 text-xs bg-slate-900/80 border border-slate-700/80 rounded-lg text-white">
+                            <option value="">Saved views</option>
+                            <option value="builtin:dxb">Arrived DXB</option>
+                            <option value="builtin:iran">In Transit Iran</option>
+                            <option value="builtin:pending">Pending Border Exit</option>
+                        </select>
+                        <button onclick="saveCurrentView()" class="glass-panel px-2.5 py-1.5 text-xs font-bold rounded-lg text-slate-200">Save View</button>
+                        <button id="deleteSavedViewBtn" onclick="deleteSavedView()" title="Delete selected saved view" aria-label="Delete selected saved view" class="hidden glass-panel px-2.5 py-1.5 text-xs font-bold rounded-lg text-red-400">Delete</button>
+                        <button onclick="resetFilters()" class="text-xs text-blue-400 hover:text-blue-300 font-bold underline">Reset All Filters</button>
+                    </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3">
                     <div class="xl:col-span-2">
@@ -306,7 +879,30 @@
                         <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">Filter Date From</label>
                         <input type="date" id="filterDateFrom" onchange="applyFilters()" class="w-full p-2.5 text-xs bg-slate-900/80 border border-slate-700/80 rounded-xl text-white focus:bg-slate-900 focus:outline-none focus:border-blue-500">
                     </div>
+                    <div>
+                        <label class="block text-[10px] font-black uppercase text-slate-400 mb-1">Filter Date To</label>
+                        <input type="date" id="filterDateTo" onchange="applyFilters()" class="w-full p-2.5 text-xs bg-slate-900/80 border border-slate-700/80 rounded-xl text-white focus:bg-slate-900 focus:outline-none focus:border-blue-500">
+                    </div>
                 </div>
+            </div>
+
+            <div id="bulkActionBar" class="hidden glass-panel p-3 rounded-xl mb-4 flex items-center flex-wrap gap-3 text-xs">
+                <strong id="selectedRecordCount" class="text-slate-200">0 selected</strong>
+                <label for="bulkFieldSelect" class="text-slate-400">Update field</label>
+                <select id="bulkFieldSelect" class="p-2 bg-slate-900 border border-slate-700 rounded-lg text-white">
+                    <option value="">Choose field</option>
+                    <option value="Status">Status</option>
+                    <option value="Jebel Ali Agent">Jebel Ali Agent</option>
+                    <option value="Iran consignee">Iran consignee</option>
+                    <option value="Jawaz / Afghanistan Agent">Afghanistan Agent</option>
+                    <option value="Final Destination">Final Destination</option>
+                    <option value="Arrival DXB">Arrival DXB</option>
+                    <option value="Arrival Iran">Arrival Iran</option>
+                    <option value="Exit">Exit Date</option>
+                </select>
+                <input id="bulkFieldValue" type="text" placeholder="Value for selected rows" class="min-w-48 p-2 bg-slate-900 border border-slate-700 rounded-lg text-white">
+                <button onclick="applyBulkUpdate()" class="px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-bold">Apply to selected</button>
+                <button onclick="clearContainerSelection()" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold">Clear selection</button>
             </div>
 
             <!-- Master Data Table -->
@@ -721,6 +1317,32 @@
 
     </main>
 
+    <div id="csvImportOverlay" class="fixed inset-0 hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4 z-[60]" role="dialog" aria-modal="true" aria-labelledby="csvImportTitle">
+        <section class="glass-card w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-700 p-6">
+            <div class="flex items-start justify-between gap-4 mb-4">
+                <div>
+                    <h2 id="csvImportTitle" class="text-lg font-black text-white">Review CSV import</h2>
+                    <p id="csvImportSummary" class="mt-1 text-xs text-slate-400"></p>
+                </div>
+                <button onclick="cancelCSVImport()" aria-label="Close CSV preview" class="text-slate-400 hover:text-white text-xl">&times;</button>
+            </div>
+            <div id="csvImportIssues" class="hidden mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200"></div>
+            <div class="overflow-x-auto table-scroll rounded-lg border border-slate-700">
+                <table class="w-full text-left text-xs text-slate-300 whitespace-nowrap">
+                    <thead class="bg-slate-900 font-bold text-slate-300">
+                        <tr><th class="p-2.5">CSV row</th><th class="p-2.5">Container</th><th class="p-2.5">Customer</th><th class="p-2.5">BL</th><th class="p-2.5">Result</th></tr>
+                    </thead>
+                    <tbody id="csvImportPreviewBody"></tbody>
+                </table>
+            </div>
+            <div id="csvImportProgress" class="min-h-5 mt-3 text-xs text-slate-400" aria-live="polite"></div>
+            <div class="flex justify-end gap-2 mt-4">
+                <button onclick="cancelCSVImport()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold">Cancel</button>
+                <button id="confirmCSVImportBtn" onclick="confirmCSVImport()" class="px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-bold">Import valid rows</button>
+            </div>
+        </section>
+    </div>
+
     <!-- Modal for Add / Edit Container -->
     <div id="modalOverlay" class="fixed inset-0 bg-[#070B14]/80 backdrop-blur-md hidden flex items-center justify-center p-4 z-50">
         <div class="glass-card rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col border border-slate-700">
@@ -815,35 +1437,292 @@
         // THEME & LAYOUT CUSTOMIZATION ENGINE
         // ==========================================
         function toggleDarkMode() {
-            document.body.classList.toggle('light-mode');
-            const isLightMode = document.body.classList.contains('light-mode');
-            localStorage.setItem('lightMode', isLightMode);
+            const isDarkMode = !document.body.classList.contains('dark-mode');
+            document.body.classList.toggle('dark-mode', isDarkMode);
+            document.body.classList.remove('light-mode');
+            localStorage.setItem('appTheme', isDarkMode ? 'dark' : 'light');
+            localStorage.removeItem('lightMode');
             const btn = document.getElementById('themeToggleBtn');
             if (btn) {
-                btn.innerHTML = isLightMode ? '<span>☀️ Light Mode</span>' : '<span>🌙 Dark Mode</span>';
+                btn.innerHTML = isDarkMode ? '<span>☀️ Light Mode</span>' : '<span>🌙 Dark Mode</span>';
             }
         }
 
         function changeThemeLayout(layoutType) {
-            document.body.setAttribute('data-layout', layoutType);
-            localStorage.setItem('themeLayout', layoutType);
+            const supportedLayouts = ['modern', 'compact', 'classic'];
+            const selectedLayout = supportedLayouts.includes(layoutType) ? layoutType : 'modern';
+            document.body.setAttribute('data-layout', selectedLayout);
+            localStorage.setItem('themeLayout', selectedLayout);
         }
 
         window.addEventListener('DOMContentLoaded', () => {
-            const savedLightMode = localStorage.getItem('lightMode') === 'true';
-            if (savedLightMode) {
-                document.body.classList.add('light-mode');
-                const btn = document.getElementById('themeToggleBtn');
-                if (btn) btn.innerHTML = '<span>☀️ Light Mode</span>';
+            const savedTheme = localStorage.getItem('appTheme');
+            const legacyLightMode = localStorage.getItem('lightMode');
+            const isDarkMode = savedTheme ? savedTheme === 'dark' : legacyLightMode === 'false';
+            document.body.classList.toggle('dark-mode', isDarkMode);
+            document.body.classList.remove('light-mode');
+            localStorage.setItem('appTheme', isDarkMode ? 'dark' : 'light');
+            localStorage.removeItem('lightMode');
+
+            const themeButton = document.getElementById('themeToggleBtn');
+            if (themeButton) {
+                themeButton.innerHTML = isDarkMode ? '<span>☀️ Light Mode</span>' : '<span>🌙 Dark Mode</span>';
             }
-            
+
+            const supportedLayouts = ['modern', 'compact', 'classic'];
             const savedLayout = localStorage.getItem('themeLayout');
-            if (savedLayout) {
-                document.body.setAttribute('data-layout', savedLayout);
-                const layoutSelect = document.getElementById('layoutSelect');
-                if (layoutSelect) layoutSelect.value = savedLayout;
-            }        
+            const selectedLayout = supportedLayouts.includes(savedLayout) ? savedLayout : 'modern';
+            document.body.setAttribute('data-layout', selectedLayout);
+            const layoutSelect = document.getElementById('layoutSelect');
+            if (layoutSelect) layoutSelect.value = selectedLayout;
         });
+
+        let authPortScene = null;
+
+        function updateAuthScene() {
+            const signinMode = !document.getElementById('signinForm').classList.contains('hidden');
+            const signupMode = !document.getElementById('signupForm').classList.contains('hidden');
+            const verificationMode = !document.getElementById('verificationScreen').classList.contains('hidden');
+            const username = document.getElementById(signupMode ? 'signupUsername' : 'signinUsername').value.trim();
+            const password = document.getElementById(signupMode ? 'signupPassword' : 'signinPassword').value;
+            const verificationCode = document.getElementById('verificationCodeInput').value.trim();
+            const active = verificationMode
+                ? [verificationCode.length > 0, verificationCode.length >= 2, verificationCode.length >= 4, verificationCode.length >= 6]
+                : [username.length > 0, username.length >= 4, password.length > 0, password.length >= 6];
+
+            document.querySelectorAll('[data-auth-node]').forEach((node, index) => {
+                node.classList.toggle('active', Boolean(active[index]));
+            });
+
+            const status = document.getElementById('authSceneStatus');
+            if (status) {
+                status.textContent = verificationMode
+                    ? (verificationCode.length >= 6 ? 'Code received' : 'Awaiting code')
+                    : active[3] ? 'Ready to connect' : active[2] ? 'Credentials loading' : active[0] ? 'Route identified' : 'Port online';
+            }
+
+            if (authPortScene) authPortScene.setProgress(active);
+        }
+
+        function initializeAuthPortScene() {
+            const canvas = document.getElementById('authPortCanvas');
+            if (!canvas || !window.THREE) return;
+
+            const THREE = window.THREE;
+            const scene = new THREE.Scene();
+            const camera = new THREE.OrthographicCamera(-7, 7, 6, -6, 0.1, 100);
+            camera.position.set(10, 11, 13);
+            camera.lookAt(0, 1.05, 0.15);
+
+            let renderer;
+            try {
+                renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+            } catch (error) {
+                console.warn('3D port scene unavailable:', error);
+                return;
+            }
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+            renderer.setClearColor(0x000000, 0);
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1;
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            scene.add(new THREE.HemisphereLight(0xf4fff5, 0x8ea99b, 0.85));
+            const sun = new THREE.DirectionalLight(0xfff5dc, 1.35);
+            sun.position.set(-5, 12, 7);
+            sun.castShadow = true;
+            sun.shadow.mapSize.set(1024, 1024);
+            sun.shadow.camera.left = -9;
+            sun.shadow.camera.right = 9;
+            sun.shadow.camera.top = 8;
+            sun.shadow.camera.bottom = -8;
+            scene.add(sun);
+
+            const ground = new THREE.Mesh(
+                new THREE.PlaneGeometry(18, 14),
+                new THREE.MeshStandardMaterial({ color: 0xe2e4d4, roughness: 1 })
+            );
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -0.08;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            const gridMaterial = new THREE.LineBasicMaterial({ color: 0x89a99a, transparent: true, opacity: 0.48 });
+            for (let i = -7; i <= 7; i += 1) {
+                const pointsA = [new THREE.Vector3(i, -0.065, -5.5), new THREE.Vector3(i, -0.065, 5.5)];
+                const pointsB = [new THREE.Vector3(-7.5, -0.065, i * 0.72), new THREE.Vector3(7.5, -0.065, i * 0.72)];
+                scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pointsA), gridMaterial));
+                scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pointsB), gridMaterial));
+            }
+
+            const makeBox = (width, height, depth, color, x, y, z, parent = scene, options = {}) => {
+                const mesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(width, height, depth),
+                    new THREE.MeshStandardMaterial({ color, roughness: options.roughness || 0.76, metalness: options.metalness || 0 })
+                );
+                mesh.position.set(x, y, z);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                parent.add(mesh);
+                return mesh;
+            };
+
+            const makeContainer = (color, x, z, y = 0, scale = 1) => {
+                const group = new THREE.Group();
+                group.position.set(x, y, z);
+                group.scale.setScalar(scale);
+                const baseMaterial = new THREE.MeshStandardMaterial({
+                    color,
+                    emissive: color,
+                    emissiveIntensity: 0.4,
+                    roughness: 0.9,
+                    metalness: 0.01
+                });
+                const shell = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.9, 1.02), baseMaterial);
+                shell.position.y = 0.49;
+                shell.castShadow = true;
+                shell.receiveShadow = true;
+                group.add(shell);
+                const ribMaterial = new THREE.MeshStandardMaterial({ color: 0x173f36, roughness: 0.9, transparent: true, opacity: 0.3 });
+                for (let rib = -5; rib <= 5; rib += 1) {
+                    const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.82, 1.055), ribMaterial);
+                    ridge.position.set(rib * 0.18, 0.49, 0);
+                    group.add(ridge);
+                }
+                scene.add(group);
+                return group;
+            };
+
+            const craneMaterial = 0x194b40;
+            const craneX = 3.8;
+            makeBox(0.22, 4.05, 0.22, craneMaterial, -craneX, 1.95, -1.55);
+            makeBox(0.22, 4.05, 0.22, craneMaterial, craneX, 1.95, -1.55);
+            makeBox(8.1, 0.28, 0.26, craneMaterial, 0, 4.02, -1.55);
+            makeBox(7.5, 0.14, 0.34, 0xe0ae59, 0, 3.83, -1.55);
+            makeBox(0.15, 0.65, 0.15, 0x397b68, -3.45, 3.55, -1.55);
+            makeBox(0.15, 0.65, 0.15, 0x397b68, 3.45, 3.55, -1.55);
+
+            const trolley = new THREE.Group();
+            makeBox(1.05, 0.28, 0.82, 0xe0a746, 0, 0, 0, trolley);
+            makeBox(0.27, 0.17, 0.24, 0x245b50, -0.3, 0.2, 0, trolley);
+            makeBox(0.27, 0.17, 0.24, 0x245b50, 0.3, 0.2, 0, trolley);
+            trolley.position.set(-2, 3.58, -1.55);
+            scene.add(trolley);
+
+            const cableMaterial = new THREE.LineBasicMaterial({ color: 0x244a42, linewidth: 2 });
+            const cableGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-2, 3.45, -1.55), new THREE.Vector3(-2, 1.55, -1.55)]);
+            const cable = new THREE.Line(cableGeometry, cableMaterial);
+            scene.add(cable);
+            const liftedContainer = makeContainer(0xf05238, -2, -1.55, 0.95, 1.04);
+
+            makeContainer(0x16836b, -2.85, 0.5, 0, 0.82);
+            makeContainer(0xff9200, -0.05, 1.05, 0, 0.82);
+            makeContainer(0x287fca, 2.85, 0.5, 0, 0.82);
+
+            makeBox(7.3, 0.2, 1.35, 0x53685f, 0, 0.2, 2.55);
+            makeBox(7.45, 0.1, 0.07, 0xe7bf71, 0, 0.34, 1.87);
+            makeBox(7.45, 0.1, 0.07, 0xe7bf71, 0, 0.34, 3.23);
+            for (let roller = -3; roller <= 3; roller += 1) {
+                const wheel = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.12, 0.12, 1.28, 12),
+                    new THREE.MeshStandardMaterial({ color: 0x354b45, roughness: 0.52, metalness: 0.22 })
+                );
+                wheel.rotation.x = Math.PI / 2;
+                wheel.position.set(roller * 0.96, 0.1, 2.55);
+                wheel.castShadow = true;
+                scene.add(wheel);
+            }
+            const conveyorContainer = makeContainer(0xff9200, -3, 2.55, 0.33, 0.96);
+
+            const nodeMaterials = [];
+            const nodePositions = [-2.7, -0.9, 0.9, 2.7];
+            const nodeLineMaterial = new THREE.LineBasicMaterial({ color: 0x4b8d7b, transparent: true, opacity: 0.55 });
+            for (let node = 0; node < nodePositions.length; node += 1) {
+                const material = new THREE.MeshStandardMaterial({
+                    color: 0x499b80,
+                    emissive: 0x32bf91,
+                    emissiveIntensity: 0.06,
+                    roughness: 0.3,
+                    metalness: 0.08
+                });
+                const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.12, 18, 12), material);
+                sphere.position.set(nodePositions[node], 2.45, 0.25);
+                scene.add(sphere);
+                nodeMaterials.push(material);
+                if (node < nodePositions.length - 1) {
+                    const connector = new THREE.Line(
+                        new THREE.BufferGeometry().setFromPoints([
+                            new THREE.Vector3(nodePositions[node], 2.45, 0.25),
+                            new THREE.Vector3(nodePositions[node + 1], 2.45, 0.25)
+                        ]),
+                        nodeLineMaterial
+                    );
+                    scene.add(connector);
+                }
+            }
+
+            const resize = () => {
+                const width = Math.max(canvas.clientWidth, 1);
+                const height = Math.max(canvas.clientHeight, 1);
+                const verticalSpan = width < 680 ? 8.0 : 8.3;
+                const aspect = width / height;
+                camera.left = -verticalSpan * aspect / 2;
+                camera.right = verticalSpan * aspect / 2;
+                camera.top = verticalSpan / 2;
+                camera.bottom = -verticalSpan / 2;
+                camera.updateProjectionMatrix();
+                renderer.setSize(width, height, false);
+                renderer.render(scene, camera);
+            };
+            const resizeObserver = new ResizeObserver(resize);
+            resizeObserver.observe(canvas);
+            resize();
+
+            let active = !document.getElementById('authOverlay').classList.contains('hidden');
+            let frameId = 0;
+            const clock = new THREE.Clock();
+            const renderFrame = () => {
+                if (!active) return;
+                const elapsed = clock.getElapsedTime();
+                const conveyorX = -3 + ((elapsed * 0.55) % 6);
+                conveyorContainer.position.x = conveyorX;
+                conveyorContainer.position.y = 0.33 + Math.abs(Math.sin(elapsed * 2.5)) * 0.035;
+                const craneXPosition = -2.5 + ((elapsed * 0.28) % 5);
+                trolley.position.x = craneXPosition;
+                const lift = 0.55 + (Math.sin(elapsed * 1.2) + 1) * 0.3;
+                liftedContainer.position.x = craneXPosition;
+                liftedContainer.position.y = lift;
+                cableGeometry.setFromPoints([
+                    new THREE.Vector3(craneXPosition, 3.45, -1.55),
+                    new THREE.Vector3(craneXPosition, lift + 0.82, -1.55)
+                ]);
+                renderer.render(scene, camera);
+                frameId = requestAnimationFrame(renderFrame);
+            };
+
+            authPortScene = {
+                setProgress(progress) {
+                    nodeMaterials.forEach((material, index) => {
+                        material.emissiveIntensity = progress[index] ? 1.25 : 0.06;
+                    });
+                    renderer.render(scene, camera);
+                },
+                setActive(isActive) {
+                    active = isActive;
+                    cancelAnimationFrame(frameId);
+                    if (active) {
+                        clock.start();
+                        frameId = requestAnimationFrame(renderFrame);
+                    }
+                }
+            };
+            authPortScene.setActive(active);
+            updateAuthScene();
+        }
+
+        window.addEventListener('DOMContentLoaded', initializeAuthPortScene);
 
         // ==========================================
         // 1. FIREBASE CONFIGURATION & INITIALIZATION
@@ -869,6 +1748,8 @@
         let masterData = [];
         let filteredData = [];
         let visibleColumns = [];
+        const selectedContainerIds = new Set();
+        let pendingCSVImport = [];
         let currentUsername = '';
         let currentRole = 'viewer';
         let pendingVerifyUsername = '';
@@ -898,6 +1779,95 @@
         let currentPage = 1;
         let pageSize = 15;
         let chartInstances = {};
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => toast.classList.add('show'));
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 250);
+            }, 2600);
+        }
+
+        function safeText(value) {
+            if (value === null || value === undefined) return '';
+            return String(value).trim();
+        }
+
+        function safeNumber(value, fallback = 0) {
+            const parsed = Number.parseFloat(value);
+            return Number.isFinite(parsed) ? parsed : fallback;
+        }
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(safeNumber(value, 0));
+        }
+
+        function normalizeRecord(rawRecord = {}) {
+            const normalized = { ...rawRecord };
+            Object.keys(normalized).forEach((key) => {
+                if (typeof normalized[key] === 'string') normalized[key] = normalized[key].trim();
+            });
+            return normalized;
+        }
+
+        function parseMasterDate(value) {
+            const text = safeText(value);
+            if (!text) return NaN;
+
+            const isoMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            if (isoMatch) {
+                return Date.UTC(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+            }
+
+            const displayMatch = text.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/);
+            if (!displayMatch) return NaN;
+
+            const day = Number(displayMatch[1]);
+            const month = Number(displayMatch[2]);
+            let year = Number(displayMatch[3]);
+            if (year < 100) year += year < 70 ? 2000 : 1900;
+            const timestamp = Date.UTC(year, month - 1, day);
+            const parsed = new Date(timestamp);
+            return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day
+                ? timestamp
+                : NaN;
+        }
+
+        function hasContainerExited(record) {
+            return Boolean(safeText(record['Exit'])) || safeText(record['Status']).toLowerCase() === 'cleared';
+        }
+
+        function validateContainerRecord(record) {
+            const errors = [];
+            if (!safeText(record['Container number'])) errors.push('Container number is required.');
+            if (!safeText(record['Customer name'])) errors.push('Customer name is required.');
+            return errors;
+        }
+
+        function renderMasterSummary() {
+            const totalContainers = masterData.length;
+            const activePipeline = masterData.filter((row) => !hasContainerExited(row)).length;
+            const borderExits = masterData.filter((row) => hasContainerExited(row)).length;
+            const customerCount = new Set(masterData.map((row) => safeText(row['Customer name']))).size;
+
+            document.getElementById('summaryTotalContainers').textContent = totalContainers;
+            document.getElementById('summaryActivePipeline').textContent = activePipeline;
+            document.getElementById('summaryBorderExit').textContent = borderExits;
+            document.getElementById('summaryCustomerCount').textContent = customerCount;
+        }
 
         const columns = [
             "S. No", "Date of documents", "Customer name", "Line", "BL number",
@@ -929,15 +1899,48 @@
         window.addEventListener('DOMContentLoaded', () => {
             visibleColumns = [...columns];
             renderColumnCheckboxes();
+            updateSavedViewOptions();
             listenToFirebaseData();
             checkInitialAdminAccount();
             listenToAuditLogs();
         });
 
+        function getLocalMembers() {
+            try {
+                const data = JSON.parse(localStorage.getItem('azadWattanMembers') || '[]');
+                return Array.isArray(data) ? data : [];
+            } catch (error) {
+                console.warn('Local members parse failed:', error);
+                return [];
+            }
+        }
+
+        function withTimeout(promise, timeoutMs = 5000) {
+            let timeoutId;
+            const timeout = new Promise((resolve, reject) => {
+                timeoutId = setTimeout(() => reject(new Error('Authentication request timed out.')), timeoutMs);
+            });
+            return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
+        }
+
+        function saveLocalMembers(members) {
+            localStorage.setItem('azadWattanMembers', JSON.stringify(members));
+        }
+
         async function checkInitialAdminAccount() {
-            const snap = await membersCollection.get();
-            if (snap.empty) {
-                await membersCollection.add({ username: 'admin', password: 'password123', role: 'admin', verified: true, code: '000000' });
+            const localMembers = getLocalMembers();
+            if (!localMembers.some(member => member.username === 'admin')) {
+                localMembers.push({ username: 'admin', password: 'password123', role: 'admin', verified: true, code: '000000' });
+                saveLocalMembers(localMembers);
+            }
+
+            try {
+                const snap = await membersCollection.where('username', '==', 'admin').get();
+                if (snap.empty) {
+                    await membersCollection.add({ username: 'admin', password: 'password123', role: 'admin', verified: true, code: '000000' });
+                }
+            } catch (error) {
+                console.warn('Firestore unavailable, local admin fallback enabled:', error);
             }
         }
 
@@ -963,6 +1966,7 @@
                 sigUpForm.classList.remove('hidden');
                 sigInForm.classList.add('hidden');
             }
+            updateAuthScene();
         }
 
         async function handleSignIn(e) {
@@ -971,32 +1975,65 @@
             const pass = document.getElementById('signinPassword').value;
             const errEl = document.getElementById('signinError');
 
-            const snap = await membersCollection.where('username', '==', user).get();
-            if (snap.empty) {
-                errEl.textContent = "Username or email not found.";
-                errEl.classList.remove('hidden');
+            try {
+                const snap = await withTimeout(membersCollection.where('username', '==', user).get());
+                if (snap.empty) {
+                    throw new Error('USER_NOT_FOUND');
+                }
+
+                let userData = null;
+                snap.forEach(doc => { userData = doc.data(); });
+
+                if (userData.password !== pass) {
+                    const localUser = getLocalMembers().find(member => member.username === user && member.password === pass && member.verified !== false);
+                    if (!localUser) {
+                        errEl.textContent = "Incorrect password.";
+                        errEl.classList.remove('hidden');
+                        return;
+                    }
+                    userData = localUser;
+                }
+
+                if (userData.verified === false) {
+                    pendingVerifyUsername = user;
+                    document.getElementById('signinForm').classList.add('hidden');
+                    document.getElementById('verificationScreen').classList.remove('hidden');
+                    updateAuthScene();
+                    return;
+                }
+
+                currentUsername = userData.username;
+                currentRole = userData.role || 'viewer';
+                finalizeLoginSuccess();
                 return;
+            } catch (error) {
+                const localMembers = getLocalMembers();
+                const localUser = localMembers.find(member => member.username === user);
+
+                if (!localUser) {
+                    errEl.textContent = "Username or email not found.";
+                    errEl.classList.remove('hidden');
+                    return;
+                }
+
+                if (localUser.password !== pass) {
+                    errEl.textContent = "Incorrect password.";
+                    errEl.classList.remove('hidden');
+                    return;
+                }
+
+                if (localUser.verified === false) {
+                    pendingVerifyUsername = user;
+                    document.getElementById('signinForm').classList.add('hidden');
+                    document.getElementById('verificationScreen').classList.remove('hidden');
+                    updateAuthScene();
+                    return;
+                }
+
+                currentUsername = localUser.username;
+                currentRole = localUser.role || 'viewer';
+                finalizeLoginSuccess();
             }
-
-            let userData = null;
-            snap.forEach(doc => { userData = doc.data(); });
-
-            if (userData.password !== pass) {
-                errEl.textContent = "Incorrect password.";
-                errEl.classList.remove('hidden');
-                return;
-            }
-
-            if (userData.verified === false) {
-                pendingVerifyUsername = user;
-                document.getElementById('signinForm').classList.add('hidden');
-                document.getElementById('verificationScreen').classList.remove('hidden');
-                return;
-            }
-
-            currentUsername = userData.username;
-            currentRole = userData.role || 'viewer';
-            finalizeLoginSuccess();
         }
 
         async function handleSignUp(e) {
@@ -1005,70 +2042,122 @@
             const pass = document.getElementById('signupPassword').value;
             const errEl = document.getElementById('signupError');
 
-            const allSnap = await membersCollection.get();
-            if (allSnap.size >= 10) {
-                errEl.textContent = "Maximum member limit (10) reached.";
-                errEl.classList.remove('hidden');
-                return;
-            }
+            const localMembers = getLocalMembers();
+            const localExists = localMembers.some(member => member.username === user);
 
-            const existing = await membersCollection.where('username', '==', user).get();
-            if (!existing.empty) {
-                errEl.textContent = "Username already exists.";
-                errEl.classList.remove('hidden');
-                return;
+            try {
+                const allSnap = await withTimeout(membersCollection.get());
+                if (allSnap.size >= 10 || localMembers.length >= 10) {
+                    errEl.textContent = "Maximum member limit (10) reached.";
+                    errEl.classList.remove('hidden');
+                    return;
+                }
+
+                const existing = await withTimeout(membersCollection.where('username', '==', user).get());
+                if (!existing.empty || localExists) {
+                    errEl.textContent = "Username already exists.";
+                    errEl.classList.remove('hidden');
+                    return;
+                }
+            } catch (error) {
+                if (localMembers.length >= 10 || localExists) {
+                    errEl.textContent = localExists ? "Username already exists." : "Maximum member limit (10) reached.";
+                    errEl.classList.remove('hidden');
+                    return;
+                }
             }
 
             const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-            await membersCollection.add({
+            const newMember = {
                 username: user,
                 password: pass,
                 role: 'viewer',
                 verified: false,
                 code: verificationCode
-            });
+            };
+
+            let savedToFirestore = false;
+            try {
+                await withTimeout(membersCollection.add(newMember));
+                savedToFirestore = true;
+            } catch (error) {
+                localMembers.push(newMember);
+                saveLocalMembers(localMembers);
+            }
 
             pendingVerifyUsername = user;
+            const verificationNotice = document.getElementById('verificationNotice');
+            if (savedToFirestore) {
+                verificationNotice.textContent = 'Registration submitted. Ask an administrator to approve your account in Members Management. The verification code is listed with your account there.';
+            } else {
+                verificationNotice.textContent = `Local demo account created. Enter this demo verification code to continue: ${verificationCode}`;
+            }
+            document.getElementById('verificationCodeInput').value = '';
+            document.getElementById('verifyError').classList.add('hidden');
             document.getElementById('signupForm').classList.add('hidden');
             document.getElementById('verificationScreen').classList.remove('hidden');
+            updateAuthScene();
         }
 
         async function verifyAccountCode() {
             const enteredCode = document.getElementById('verificationCodeInput').value.trim();
             const errEl = document.getElementById('verifyError');
 
-            const snap = await membersCollection.where('username', '==', pendingVerifyUsername).get();
-            if (snap.empty) {
-                errEl.textContent = "Account error. Please register again.";
-                errEl.classList.remove('hidden');
+            try {
+                const snap = await withTimeout(membersCollection.where('username', '==', pendingVerifyUsername).get());
+                if (snap.empty) {
+                    throw new Error('USER_NOT_FOUND');
+                }
+
+                let docId = '';
+                let userData = null;
+                snap.forEach(d => { docId = d.id; userData = d.data(); });
+
+                if (userData.code !== enteredCode) {
+                    errEl.textContent = "Incorrect verification code. Ask admin for correct code.";
+                    errEl.classList.remove('hidden');
+                    return;
+                }
+
+                await withTimeout(membersCollection.doc(docId).update({ verified: true }));
+
+                currentUsername = userData.username;
+                currentRole = userData.role || 'viewer';
+                finalizeLoginSuccess();
                 return;
+            } catch (error) {
+                const localMembers = getLocalMembers();
+                const localUser = localMembers.find(member => member.username === pendingVerifyUsername);
+                if (!localUser) {
+                    errEl.textContent = "Account error. Please register again.";
+                    errEl.classList.remove('hidden');
+                    return;
+                }
+
+                if (localUser.code !== enteredCode) {
+                    errEl.textContent = "Incorrect verification code. Ask admin for correct code.";
+                    errEl.classList.remove('hidden');
+                    return;
+                }
+
+                localUser.verified = true;
+                saveLocalMembers(localMembers);
+                currentUsername = localUser.username;
+                currentRole = localUser.role || 'viewer';
+                finalizeLoginSuccess();
             }
-
-            let docId = '';
-            let userData = null;
-            snap.forEach(d => { docId = d.id; userData = d.data(); });
-
-            if (userData.code !== enteredCode) {
-                errEl.textContent = "Incorrect verification code. Ask admin for correct code.";
-                errEl.classList.remove('hidden');
-                return;
-            }
-
-            await membersCollection.doc(docId).update({ verified: true });
-
-            currentUsername = userData.username;
-            currentRole = userData.role || 'viewer';
-            finalizeLoginSuccess();
         }
 
         function backToSignIn() {
             document.getElementById('verificationScreen').classList.add('hidden');
             document.getElementById('signinForm').classList.remove('hidden');
+            updateAuthScene();
         }
 
         function finalizeLoginSuccess() {
             document.getElementById('authOverlay').classList.add('hidden');
+            document.body.classList.add('authenticated');
+            if (authPortScene) authPortScene.setActive(false);
             document.getElementById('loggedUserDisplay').textContent = currentUsername;
             document.getElementById('loggedRoleDisplay').textContent = currentRole;
 
@@ -1086,10 +2175,13 @@
             logVisitorHistory("Logged Out");
             currentUsername = '';
             currentRole = 'viewer';
+            document.body.classList.remove('authenticated');
             document.getElementById('authOverlay').classList.remove('hidden');
+            if (authPortScene) authPortScene.setActive(true);
             document.getElementById('signinUsername').value = '';
             document.getElementById('signinPassword').value = '';
             document.getElementById('signinError').classList.add('hidden');
+            updateAuthScene();
         }
 
         // ==========================================
@@ -1300,47 +2392,67 @@
             if (!el) return;
             const currentVal = el.value;
             const defaultText = el.options[0].text;
-            el.innerHTML = `<option value="">${defaultText}</option>`;
+            el.replaceChildren(new Option(defaultText, ''));
             Array.from(setValues).sort().forEach(val => {
-                el.innerHTML += `<option value="${val}">${val}</option>`;
+                el.add(new Option(String(val), String(val)));
             });
             el.value = currentVal;
         }
 
         function applyFilters() {
-            const keyword = document.getElementById('searchInput').value.toLowerCase();
+            const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
             const cust = document.getElementById('filterCustomer').value;
             const line = document.getElementById('filterLine').value;
             const soc = document.getElementById('filterSocCoc').value;
             const dest = document.getElementById('filterDestination').value;
             const status = document.getElementById('filterStatus').value;
-            const dateFrom = document.getElementById('filterDateFrom').value;
+            const dateFromValue = document.getElementById('filterDateFrom').value;
+            const dateToValue = document.getElementById('filterDateTo').value;
+            const dateFrom = dateFromValue ? Date.parse(`${dateFromValue}T00:00:00Z`) : NaN;
+            const dateTo = dateToValue ? Date.parse(`${dateToValue}T23:59:59Z`) : NaN;
 
             filteredData = masterData.filter(row => {
-                const matchesKeyword = !keyword || Object.values(row).some(val => String(val).toLowerCase().includes(keyword));
-                const matchesCust = !cust || row["Customer name"] === cust;
-                const matchesLine = !line || row["Line"] === line;
-                const matchesSoc = !soc || row["SOC / COC"] === soc;
-                const matchesDest = !dest || row["Final Destination"] === dest;
+                const record = normalizeRecord(row);
+                const searchable = Object.values(record).map((val) => String(val || '')).join(' ').toLowerCase();
+                const matchesKeyword = !keyword || searchable.includes(keyword);
+                const matchesCust = !cust || safeText(record["Customer name"]) === cust;
+                const matchesLine = !line || safeText(record["Line"]) === line;
+                const matchesSoc = !soc || safeText(record["SOC / COC"]) === soc;
+                const matchesDest = !dest || safeText(record["Final Destination"]) === dest;
 
                 let matchesStatus = true;
-                if (status === 'dxb') matchesStatus = Boolean(row["Arrival DXB"]);
-                else if (status === 'iran') matchesStatus = Boolean(row["Arrival Iran"]);
-                else if (status === 'exit') matchesStatus = Boolean(row["Exit"]);
-                else if (status === 'pending') matchesStatus = !Boolean(row["Exit"]);
+                if (status === 'dxb') matchesStatus = Boolean(safeText(record["Arrival DXB"]));
+                else if (status === 'iran') matchesStatus = Boolean(safeText(record["Arrival Iran"]));
+                else if (status === 'exit') matchesStatus = hasContainerExited(record);
+                else if (status === 'pending') matchesStatus = !hasContainerExited(record) && safeText(record['Status']).toLowerCase() !== 'ignored';
 
                 let matchesDate = true;
-                if (dateFrom && row["Date of documents"]) {
-                    matchesDate = row["Date of documents"] >= dateFrom;
+                if (dateFromValue || dateToValue) {
+                    const recordDate = parseMasterDate(record['Date of documents']);
+                    matchesDate = Number.isFinite(recordDate)
+                        && (!dateFromValue || recordDate >= dateFrom)
+                        && (!dateToValue || recordDate <= dateTo);
                 }
 
                 return matchesKeyword && matchesCust && matchesLine && matchesSoc && matchesDest && matchesStatus && matchesDate;
             });
 
+            renderMasterSummary();
+
             if (sortCol) {
                 filteredData.sort((a, b) => {
                     let valA = a[sortCol] || '';
                     let valB = b[sortCol] || '';
+                    const dateColumns = ['Date of documents', 'BL date', 'Arrival DXB', 'Arrival Iran', 'Exit'];
+                    if (dateColumns.includes(sortCol)) {
+                        const dateA = parseMasterDate(valA);
+                        const dateB = parseMasterDate(valB);
+                        if (Number.isFinite(dateA) && Number.isFinite(dateB)) {
+                            return sortAsc ? dateA - dateB : dateB - dateA;
+                        }
+                        if (Number.isFinite(dateA)) return sortAsc ? -1 : 1;
+                        if (Number.isFinite(dateB)) return sortAsc ? 1 : -1;
+                    }
                     if (!isNaN(valA) && !isNaN(valB)) {
                         valA = Number(valA);
                         valB = Number(valB);
@@ -1363,7 +2475,101 @@
             document.getElementById('filterDestination').value = '';
             document.getElementById('filterStatus').value = '';
             document.getElementById('filterDateFrom').value = '';
+            document.getElementById('filterDateTo').value = '';
+            document.getElementById('savedViewSelect').value = '';
+            updateSavedViewOptions();
             applyFilters();
+        }
+
+        function getSavedMasterViews() {
+            try {
+                const views = JSON.parse(localStorage.getItem('masterSheetSavedViews') || '[]');
+                return Array.isArray(views) ? views : [];
+            } catch (error) {
+                console.warn('Saved master views could not be loaded:', error);
+                return [];
+            }
+        }
+
+        function updateSavedViewOptions() {
+            const select = document.getElementById('savedViewSelect');
+            if (!select) return;
+            const currentValue = select.value;
+            const views = getSavedMasterViews();
+            select.replaceChildren(
+                new Option('Saved views', ''),
+                new Option('Arrived DXB', 'builtin:dxb'),
+                new Option('In Transit Iran', 'builtin:iran'),
+                new Option('Pending Border Exit', 'builtin:pending')
+            );
+            views.forEach(view => select.add(new Option(view.name, `saved:${view.id}`)));
+            select.value = Array.from(select.options).some(option => option.value === currentValue) ? currentValue : '';
+            const deleteButton = document.getElementById('deleteSavedViewBtn');
+            if (deleteButton) deleteButton.classList.toggle('hidden', !select.value.startsWith('saved:'));
+        }
+
+        function applySavedView(value) {
+            if (!value) return;
+            const filterElements = {
+                search: 'searchInput',
+                customer: 'filterCustomer',
+                line: 'filterLine',
+                soc: 'filterSocCoc',
+                destination: 'filterDestination',
+                status: 'filterStatus',
+                dateFrom: 'filterDateFrom',
+                dateTo: 'filterDateTo'
+            };
+            const clearCurrentFilters = () => Object.values(filterElements).forEach(id => {
+                document.getElementById(id).value = '';
+            });
+
+            clearCurrentFilters();
+            if (value === 'builtin:dxb') document.getElementById('filterStatus').value = 'dxb';
+            else if (value === 'builtin:iran') document.getElementById('filterStatus').value = 'iran';
+            else if (value === 'builtin:pending') document.getElementById('filterStatus').value = 'pending';
+            else if (value.startsWith('saved:')) {
+                const savedView = getSavedMasterViews().find(view => `saved:${view.id}` === value);
+                if (savedView) {
+                    Object.entries(filterElements).forEach(([key, id]) => {
+                        document.getElementById(id).value = savedView.filters[key] || '';
+                    });
+                }
+            }
+            updateSavedViewOptions();
+            document.getElementById('savedViewSelect').value = value;
+            applyFilters();
+        }
+
+        function saveCurrentView() {
+            const name = prompt('Name this master sheet view:');
+            if (!name || !name.trim()) return;
+            const filters = {
+                search: document.getElementById('searchInput').value,
+                customer: document.getElementById('filterCustomer').value,
+                line: document.getElementById('filterLine').value,
+                soc: document.getElementById('filterSocCoc').value,
+                destination: document.getElementById('filterDestination').value,
+                status: document.getElementById('filterStatus').value,
+                dateFrom: document.getElementById('filterDateFrom').value,
+                dateTo: document.getElementById('filterDateTo').value
+            };
+            const views = getSavedMasterViews();
+            const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+            views.push({ id, name: name.trim(), filters });
+            localStorage.setItem('masterSheetSavedViews', JSON.stringify(views));
+            updateSavedViewOptions();
+            document.getElementById('savedViewSelect').value = `saved:${id}`;
+        }
+
+        function deleteSavedView() {
+            const select = document.getElementById('savedViewSelect');
+            if (!select.value.startsWith('saved:')) return;
+            if (!confirm('Delete this saved master sheet view?')) return;
+            const id = select.value.slice('saved:'.length);
+            const views = getSavedMasterViews().filter(view => String(view.id) !== id);
+            localStorage.setItem('masterSheetSavedViews', JSON.stringify(views));
+            updateSavedViewOptions();
         }
 
         function renderMasterTable() {
@@ -1372,41 +2578,165 @@
             const countEl = document.getElementById('record-count');
 
             countEl.textContent = filteredData.length;
-
-            let headerHTML = '<tr><th class="p-3.5 w-12 text-center">#</th>';
-            visibleColumns.forEach(col => {
-                headerHTML += `<th class="p-3.5 cursor-pointer hover:text-blue-400" onclick="sortMasterTable('${col}')">${col} ${sortCol === col ? (sortAsc ? '▲' : '▼') : ''}</th>`;
-            });
-            headerHTML += '<th class="p-3.5 text-center">Actions</th></tr>';
-            headerEl.innerHTML = headerHTML;
-
             const start = (currentPage - 1) * pageSize;
             const end = start + Number(pageSize);
             const pageRows = filteredData.slice(start, end);
 
-            bodyEl.innerHTML = '';
+            const headerRow = document.createElement('tr');
+            const selectHeader = document.createElement('th');
+            selectHeader.className = 'p-3.5 w-12 text-center';
+            const selectPage = document.createElement('input');
+            selectPage.type = 'checkbox';
+            selectPage.setAttribute('aria-label', 'Select all rows on this page');
+            selectPage.checked = pageRows.length > 0 && pageRows.every(row => selectedContainerIds.has(row.docId));
+            selectPage.indeterminate = pageRows.some(row => selectedContainerIds.has(row.docId)) && !selectPage.checked;
+            selectPage.addEventListener('change', () => selectCurrentPage(pageRows, selectPage.checked));
+            selectHeader.appendChild(selectPage);
+            headerRow.appendChild(selectHeader);
+
+            const rowNumberHeader = document.createElement('th');
+            rowNumberHeader.className = 'p-3.5 w-12 text-center';
+            rowNumberHeader.textContent = '#';
+            headerRow.appendChild(rowNumberHeader);
+
+            visibleColumns.forEach(col => {
+                const th = document.createElement('th');
+                th.className = 'p-3.5 cursor-pointer hover:text-blue-400';
+                th.textContent = `${col} ${sortCol === col ? (sortAsc ? '▲' : '▼') : ''}`;
+                th.addEventListener('click', () => sortMasterTable(col));
+                headerRow.appendChild(th);
+            });
+            const actionsHeader = document.createElement('th');
+            actionsHeader.className = 'p-3.5 text-center';
+            actionsHeader.textContent = 'Actions';
+            headerRow.appendChild(actionsHeader);
+            headerEl.replaceChildren(headerRow);
+
+            bodyEl.replaceChildren();
             if (pageRows.length === 0) {
-                bodyEl.innerHTML = `<tr><td colspan="${visibleColumns.length + 2}" class="p-8 text-center text-slate-400">No matching container records found.</td></tr>`;
+                const emptyRow = document.createElement('tr');
+                const emptyCell = document.createElement('td');
+                emptyCell.colSpan = visibleColumns.length + 3;
+                emptyCell.className = 'p-8 text-center text-slate-400';
+                emptyCell.textContent = 'No matching container records found.';
+                emptyRow.appendChild(emptyCell);
+                bodyEl.appendChild(emptyRow);
+                updateBulkActionBar();
                 updatePaginationControls();
                 return;
             }
 
             pageRows.forEach((row, idx) => {
-                let rowHTML = `<tr class="hover:bg-slate-800/40 transition"><td class="p-3.5 text-center text-slate-500 font-bold">${start + idx + 1}</td>`;
+                const tableRow = document.createElement('tr');
+                tableRow.className = 'hover:bg-slate-800/40 transition';
+
+                const selectCell = document.createElement('td');
+                selectCell.className = 'p-3.5 text-center';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = selectedContainerIds.has(row.docId);
+                checkbox.setAttribute('aria-label', `Select container ${safeText(row['Container number'])}`);
+                checkbox.addEventListener('change', () => toggleContainerSelection(row.docId, checkbox.checked));
+                selectCell.appendChild(checkbox);
+                tableRow.appendChild(selectCell);
+
+                const rowNumberCell = document.createElement('td');
+                rowNumberCell.className = 'p-3.5 text-center text-slate-500 font-bold';
+                rowNumberCell.textContent = String(start + idx + 1);
+                tableRow.appendChild(rowNumberCell);
+
                 visibleColumns.forEach(col => {
-                    let val = row[col] !== undefined ? row[col] : '';
-                    rowHTML += `<td class="p-3.5">${val}</td>`;
+                    const cell = document.createElement('td');
+                    cell.className = 'p-3.5';
+                    cell.textContent = safeText(row[col]);
+                    tableRow.appendChild(cell);
                 });
-                rowHTML += `
-                    <td class="p-3.5 text-center space-x-2">
-                        <button onclick="openModalForEdit('${row.docId}')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold transition">Edit</button>
-                        <button onclick="deleteContainerRecord('${row.docId}', '${row["Container number"]}')" class="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold transition">Delete</button>
-                    </td>
-                </tr>`;
-                bodyEl.innerHTML += rowHTML;
+
+                const actionsCell = document.createElement('td');
+                actionsCell.className = 'p-3.5 text-center space-x-2';
+                const editButton = document.createElement('button');
+                editButton.className = 'px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold transition';
+                editButton.textContent = 'Edit';
+                editButton.addEventListener('click', () => openModalForEdit(row.docId));
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold transition';
+                deleteButton.textContent = 'Delete';
+                deleteButton.addEventListener('click', () => deleteContainerRecord(row.docId, safeText(row['Container number'])));
+                actionsCell.append(editButton, deleteButton);
+                tableRow.appendChild(actionsCell);
+                bodyEl.appendChild(tableRow);
             });
 
+            updateBulkActionBar();
             updatePaginationControls();
+        }
+
+        function updateBulkActionBar() {
+            const bar = document.getElementById('bulkActionBar');
+            if (!bar) return;
+            bar.classList.toggle('hidden', selectedContainerIds.size === 0);
+            document.getElementById('selectedRecordCount').textContent = `${selectedContainerIds.size} selected`;
+        }
+
+        function toggleContainerSelection(docId, isSelected) {
+            if (isSelected) selectedContainerIds.add(docId);
+            else selectedContainerIds.delete(docId);
+            updateBulkActionBar();
+            renderMasterTable();
+        }
+
+        function selectCurrentPage(rows, isSelected) {
+            rows.forEach(row => {
+                if (isSelected) selectedContainerIds.add(row.docId);
+                else selectedContainerIds.delete(row.docId);
+            });
+            renderMasterTable();
+        }
+
+        function clearContainerSelection() {
+            selectedContainerIds.clear();
+            renderMasterTable();
+        }
+
+        async function applyBulkUpdate() {
+            if (currentRole !== 'admin') {
+                showToast('Admin access is required for bulk updates.', 'error');
+                return;
+            }
+            const field = document.getElementById('bulkFieldSelect').value;
+            const value = document.getElementById('bulkFieldValue').value.trim();
+            const ids = Array.from(selectedContainerIds);
+            const allowedFields = new Set([
+                'Status', 'Jebel Ali Agent', 'Iran consignee', 'Jawaz / Afghanistan Agent',
+                'Final Destination', 'Arrival DXB', 'Arrival Iran', 'Exit'
+            ]);
+            if (!allowedFields.has(field) || !value || ids.length === 0) {
+                showToast('Choose a field, enter a value, and select containers.', 'warning');
+                return;
+            }
+            if (!confirm(`Set ${field} to "${value}" for ${ids.length} selected container(s)?`)) return;
+
+            const payload = {
+                [field]: value,
+                lastUpdatedBy: currentUsername || 'System',
+                lastUpdatedTime: new Date().toLocaleString()
+            };
+            try {
+                for (let offset = 0; offset < ids.length; offset += 400) {
+                    const batch = db.batch();
+                    ids.slice(offset, offset + 400).forEach(id => batch.update(containersCollection.doc(id), payload));
+                    await batch.commit();
+                }
+                await logAuditAction('Bulk Update', `${ids.length} containers`, `Set ${field} to ${value}`);
+                selectedContainerIds.clear();
+                document.getElementById('bulkFieldSelect').value = '';
+                document.getElementById('bulkFieldValue').value = '';
+                showToast(`Updated ${ids.length} container(s).`, 'success');
+                applyFilters();
+            } catch (error) {
+                console.error('Bulk status update failed:', error);
+                showToast('Bulk update failed. Some batches may already have completed.', 'error');
+            }
         }
 
         function sortMasterTable(col) {
@@ -1579,14 +2909,31 @@
                 "lastUpdatedTime": now
             };
 
+            const errors = validateContainerRecord(record);
+            if (errors.length) {
+                showToast(errors[0], 'error');
+                return;
+            }
+
+            const duplicateMatch = masterData.find((row) => {
+                if (docId && row.docId === docId) return false;
+                return safeText(row['Container number']).toLowerCase() === safeText(record['Container number']).toLowerCase();
+            });
+            if (duplicateMatch) {
+                showToast('A container with this number already exists.', 'warning');
+                return;
+            }
+
             const sanitized = sanitizeDataForFirestore(record);
 
             if (docId) {
                 await containersCollection.doc(docId).set(sanitized);
                 await logAuditAction("Update", record["Container number"], `Updated container record details`);
+                showToast('Container updated successfully.', 'success');
             } else {
                 await containersCollection.add(sanitized);
                 await logAuditAction("Add", record["Container number"], `Added new container record`);
+                showToast('Container added successfully.', 'success');
             }
 
             closeModal();
@@ -2011,10 +3358,8 @@ function generateExpensesPDF() {
             masterData.forEach(r => { if (r["Customer name"]) customers.add(r["Customer name"]); });
             
             const current = select.value;
-            select.innerHTML = '<option value="">-- Select Customer --</option>';
-            Array.from(customers).sort().forEach(c => {
-                select.innerHTML += `<option value="${c}">${c}</option>`;
-            });
+            select.replaceChildren(new Option('-- Select Customer --', ''));
+            Array.from(customers).sort().forEach(customer => select.add(new Option(String(customer), String(customer))));
             select.value = current;
         }
 
@@ -2112,23 +3457,123 @@ function generateExpensesPDF() {
             Papa.parse(file, {
                 header: true,
                 skipEmptyLines: true,
-                complete: async function(results) {
-                    const imported = results.data;
-                    if (imported.length === 0) { alert("CSV file is empty."); return; }
-                    
-                    if (confirm(`Import ${imported.length} container records into Firestore database?`)) {
-                        for (let row of imported) {
-                            const sanitized = sanitizeDataForFirestore(row);
-                            await containersCollection.add(sanitized);
-                        }
-                        alert("CSV data successfully imported into Firestore database!");
+                complete: function(results) {
+                    const imported = results.data
+                        .map(row => normalizeRecord(row))
+                        .filter(row => Object.values(row).some(value => safeText(value)));
+
+                    if (imported.length === 0) {
+                        showToast('CSV file is empty or contains no records.', 'error');
+                        event.target.value = '';
+                        return;
                     }
+
+                    const seenContainers = new Set(masterData
+                        .map(row => safeText(row['Container number']).replace(/\s+/g, '').toUpperCase())
+                        .filter(Boolean));
+                    pendingCSVImport = imported.map((record, index) => {
+                        const issues = validateContainerRecord(record);
+                        const containerKey = safeText(record['Container number']).replace(/\s+/g, '').toUpperCase();
+                        if (containerKey && seenContainers.has(containerKey)) issues.push('Duplicate container number.');
+                        else if (containerKey) seenContainers.add(containerKey);
+                        return { rowNumber: index + 2, record, issues };
+                    });
+
+                    renderCSVImportPreview(results.errors || []);
                     event.target.value = '';
                 },
-                error: function(err) {
-                    alert("Error parsing CSV: " + err.message);
+                error: function(error) {
+                    showToast('Error parsing CSV: ' + error.message, 'error');
+                    event.target.value = '';
                 }
             });
+        }
+
+        function renderCSVImportPreview(parseErrors = []) {
+            const tbody = document.getElementById('csvImportPreviewBody');
+            const summary = document.getElementById('csvImportSummary');
+            const issuesBox = document.getElementById('csvImportIssues');
+            const validRows = pendingCSVImport.filter(item => item.issues.length === 0);
+            const duplicateCount = pendingCSVImport.filter(item => item.issues.some(issue => issue.startsWith('Duplicate'))).length;
+            const invalidCount = pendingCSVImport.filter(item => item.issues.some(issue => !issue.startsWith('Duplicate'))).length;
+
+            summary.textContent = `${validRows.length} ready to import · ${duplicateCount} duplicates · ${invalidCount} invalid rows · ${parseErrors.length} CSV warnings`;
+            tbody.replaceChildren();
+            pendingCSVImport.slice(0, 8).forEach(item => {
+                const row = document.createElement('tr');
+                row.className = 'border-t border-slate-800/70';
+                [item.rowNumber, item.record['Container number'], item.record['Customer name'], item.record['BL number'], item.issues.join(' ') || 'Ready'].forEach(value => {
+                    const cell = document.createElement('td');
+                    cell.className = 'p-2.5';
+                    cell.textContent = safeText(value) || '—';
+                    row.appendChild(cell);
+                });
+                tbody.appendChild(row);
+            });
+
+            const issueLines = pendingCSVImport
+                .filter(item => item.issues.length)
+                .slice(0, 8)
+                .map(item => `Row ${item.rowNumber}: ${item.issues.join(' ')}`);
+            if (parseErrors.length) issueLines.push(`${parseErrors.length} CSV parsing warning(s); check column names and row formatting.`);
+            issuesBox.replaceChildren();
+            issuesBox.classList.toggle('hidden', issueLines.length === 0);
+            issueLines.forEach(message => {
+                const line = document.createElement('p');
+                line.textContent = message;
+                issuesBox.appendChild(line);
+            });
+
+            const confirmButton = document.getElementById('confirmCSVImportBtn');
+            confirmButton.disabled = validRows.length === 0;
+            confirmButton.textContent = `Import ${validRows.length} valid row(s)`;
+            document.getElementById('csvImportProgress').textContent = pendingCSVImport.length > 8
+                ? `Previewing first 8 of ${pendingCSVImport.length} rows.`
+                : '';
+            document.getElementById('csvImportOverlay').classList.remove('hidden');
+            document.getElementById('csvImportOverlay').classList.add('flex');
+        }
+
+        function cancelCSVImport() {
+            pendingCSVImport = [];
+            document.getElementById('csvImportOverlay').classList.add('hidden');
+            document.getElementById('csvImportOverlay').classList.remove('flex');
+            document.getElementById('csvImportProgress').textContent = '';
+        }
+
+        async function confirmCSVImport() {
+            const rows = pendingCSVImport.filter(item => item.issues.length === 0).map(item => item.record);
+            if (!rows.length) return;
+
+            const confirmButton = document.getElementById('confirmCSVImportBtn');
+            confirmButton.disabled = true;
+            let importedCount = 0;
+            try {
+                for (let offset = 0; offset < rows.length; offset += 400) {
+                    const chunk = rows.slice(offset, offset + 400);
+                    const batch = db.batch();
+                    chunk.forEach(row => {
+                        const record = {
+                            ...row,
+                            lastUpdatedBy: currentUsername || 'System',
+                            lastUpdatedTime: new Date().toLocaleString()
+                        };
+                        batch.set(containersCollection.doc(), sanitizeDataForFirestore(record));
+                    });
+                    await batch.commit();
+                    importedCount += chunk.length;
+                    document.getElementById('csvImportProgress').textContent = `Imported ${importedCount} of ${rows.length} rows...`;
+                }
+
+                await logAuditAction('CSV Import', `${importedCount} containers`, `Imported ${importedCount} records from CSV`);
+                cancelCSVImport();
+                showToast(`${importedCount} records imported successfully.`, 'success');
+            } catch (error) {
+                console.error('CSV import failed:', error);
+                document.getElementById('csvImportProgress').textContent = `Import stopped after ${importedCount} rows. Review the remaining records and retry.`;
+                confirmButton.disabled = false;
+                showToast(`Import stopped after ${importedCount} row(s).`, 'error');
+            }
         }
 
         // ==========================================
